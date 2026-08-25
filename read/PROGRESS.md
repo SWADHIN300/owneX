@@ -3,8 +3,8 @@
 Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
-**Last updated:** 2026-08-26 · after Phase 2
-**Overall:** 2 of 8 phases done · 93 tests passing · nothing deployed to Sepolia yet
+**Last updated:** 2026-08-26 · after Phase 3
+**Overall:** 3 of 8 phases done · 93 contract tests passing · role API verified live · Supabase keys still needed
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -18,12 +18,15 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 |---|---|---|---|
 | 1 | Smart contracts | ✅ done | `phase-1-contracts.md` |
 | 2 | Tests + local deploy + demo seed | ✅ done | `phase-2-tests-and-deploy.md` |
-| 3 | Backend: Supabase + SIWE auth + role API | ⬜ next | — |
-| 4 | Design system + landing page | ⬜ | — |
+| 3 | Backend: Supabase + SIWE auth + role API | ✅ done | `phase-3-backend.md` |
+| 4 | Design system + landing page | ⬜ next | — |
 | 5 | Platform dashboard (all pages) | ⬜ | — |
 | 6 | Employee Portal (second app) | ⬜ | — |
 | 7 | Sepolia deploy + polish | ⬜ | — |
 | 8 | Docs + demo video + submission | ⬜ | — |
+
+⚠ **One blocker:** Supabase URL + service role key. Everything that writes to
+the database is built but unverified until those are in `.env.local`.
 
 ---
 
@@ -160,35 +163,24 @@ Phase 5's Audit Trail page reads these via `queryFilter`, cached in Supabase.
 
 # Remaining
 
-## Phase 3 — Backend: Supabase + SIWE + role API ⬜ NEXT
+## Phase 3 — Backend ✅ DONE
+
+Built and verified. Full detail in `phase-3-backend.md`.
 
 ```
-⬜ Create Supabase project, capture URL + anon key + service role key
-⬜ Tables: profiles · organizations · assets · audit_cache · nonces
-⬜ Enable Row Level Security on every table
-⬜ Scaffold apps/platform (Next.js App Router + TS + Tailwind)
-⬜ lib/: supabase.ts (server-only) · contracts.ts (ethers provider) · siwe.ts
-        session.ts (iron-session) · crypto.ts (PII encryption)
-⬜ POST /api/auth/nonce        single-use nonce, 5-min TTL
-⬜ POST /api/auth/verify       recover signer, check domain+chainId+nonce+expiry,
-                              read on-chain role, set httpOnly cookie
-⬜ GET  /api/identity/me       wallet from cookie → role + profile
-⬜ GET  /api/roles/verify      the endpoint the Employee Portal calls
-⬜ GET  /api/assets            on-chain owner joined with Supabase data
-⬜ POST /api/assets            admin only, role re-read from chain
-⬜ GET  /api/metadata/[id]     serves the ERC-721 metadata JSON
-⬜ GET  /api/audit             paged from audit_cache
-⬜ Event indexer: queryFilter → audit_cache
+✅ Next.js 16 app at apps/platform (App Router, TS, Tailwind 4)
+✅ supabase/schema.sql — 7 tables, RLS on everywhere, zero permissive policies
+✅ lib/: env · crypto · hash · supabase · chain · session · siwe · authz · http · indexer
+✅ 11 API route handlers, all building clean
+✅ scripts/export-abi.ts keeps app ABIs in sync with artifacts
+✅ Role API verified live: 4 wallets, permissions match the contract matrix
+✅ Revocation cascade verified through HTTP (allowed=True → IDENTITY_REVOKED → restored)
+✅ Trust boundary verified: every protected route returns 401 unauthenticated
+
+⬜ BLOCKED on Supabase keys: nonce persistence, profiles, asset drafts, audit cache
+⬜ Apply schema.sql to a real Supabase project
+⬜ Create the storage bucket for asset images
 ```
-
-Two rules to hold to, from the locked spec:
-
-1. **Trust boundary** — never trust a wallet address from a request body. Only a
-   signature-recovered address or the httpOnly session cookie.
-2. **Role freshness** — for sensitive actions (mint, assign, revoke) re-read the
-   role from the contract at request time, not from the cached cookie. This is
-   what makes live revocation land instantly in the demo.
-
 ## Phase 4 — Design system + landing ⬜
 
 ```
