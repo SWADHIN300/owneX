@@ -127,6 +127,55 @@ GET  /api/roles/verify ()   400 BAD_REQUEST
 Every protected endpoint refuses an unauthenticated caller. There is no code
 path that reads a wallet address from a request body.
 
+### Full end-to-end verification — 84 assertions, 0 failures
+
+Supabase live, schema applied, seeded on both sides. `scripts/verify-api.mjs`
+performs real SIWE logins with real signatures and exercises every route:
+
+```
+health              configured, chain reachable, contracts reachable, database reachable
+trust boundary      5 protected routes return 401 unauthenticated
+SIWE                wrong signer rejected · tampered message rejected
+                    valid signature accepted · nonce replay rejected
+admin session       ADMIN role, root admin flagged, DID derived,
+                    identity record intact, profile joined from Supabase
+assets              3 listed, chain joined with database, record intact,
+                    admin sees full serial NW-LAP-4471
+mint draft          assetHash + metadataUri returned; confirm refuses a
+                    non-existent token and refuses a hash mismatch
+metadata            ERC-721 JSON valid, live holder from chain,
+                    no serial leaked, no email leaked
+audit               26 events indexed, all expected event types present,
+                    tx hashes present, roles decoded, re-sync idempotent
+                    (26 vs 26 — no duplicates)
+least privilege     USER: no MINT/ASSIGN/VIEW_AUDIT, holds assets [1,2],
+                    403 on mint, 403 on audit, serial masked to •••••••4471
+manager             TRANSFER_ASSETS + VIEW_AUDIT, no MINT by default
+roles/verify        ADMIN/MANAGER/USER all resolved with no session,
+                    stranger denied IDENTITY_NOT_REGISTERED, no email exposed
+logout              session works, logout 200, then 401
+```
+
+The two results worth pointing at in a demo: **`serial number masked for a plain
+user  •••••••4471`** — the same endpoint returns different data depending on an
+on-chain role. And **`no duplicate rows created  26 vs 26`** — the indexer is
+genuinely idempotent, so the audit cache can be rebuilt from the chain at will.
+
+### Hash alignment
+
+The chain seeder and the app compute identical anchors, checked against a fresh
+chain:
+
+```
+identity  Arjun Mehta      match: true
+asset #1  Company Laptop   match: true
+asset #2  ISO 9001 cert    match: true
+tamper check (wrong serial): false
+```
+
+Change a serial number off-chain and the hash stops matching. That is
+tamper-evidence working, with nothing private on-chain.
+
 ---
 
 ## 3. Decisions made
@@ -193,18 +242,29 @@ built and verified.
 
 ## 5. Known gaps
 
-- **Supabase credentials are placeholders.** Everything that writes to the
-  database is unverified: nonce persistence, profiles, asset drafts, audit
-  cache. `/api/auth/nonce` returns 500 until real keys are in place. This is the
-  only blocker.
-- The schema has not been applied to a real project yet.
-- No storage bucket created for asset images.
-- The indexer runs on demand only. Production wants a cron or a worker.
+- The indexer runs on demand only. Production wants a cron job or a small
+  always-on worker listening for events.
 - No rate limiting on `/api/auth/nonce` or `/api/roles/verify`. Fine for a demo,
   needed before real use.
-- `/api/roles/verify` is unauthenticated by design. Production would add an API
-  key per integrated application so usage is attributable.
+- `/api/roles/verify` is unauthenticated by design. Production would issue an API
+  key per integrated application so usage is attributable and revocable.
 - No CSRF token on state-changing routes. `sameSite: lax` plus JSON-only bodies
   covers the realistic cases for a PoC.
-- No tests for the route handlers. The contracts have 93; the API has manual
-  verification only.
+- No automated tests for the route handlers in CI. `scripts/verify-api.mjs`
+  covers 84 assertions but must be run manually against a live stack.
+- Expired nonces accumulate until `purge_expired_nonces()` is called. Harmless,
+  but should be scheduled.
+- Asset images are not uploaded yet — the `asset-images` bucket exists and is
+  public, but the upload path is Phase 5 UI work.
+- Supabase secret key has been shared in a chat log during setup and should be
+  rotated before the demo.
+
+### Resolved during this phase
+
+- ~~Supabase credentials are placeholders~~ — live project connected, schema
+  applied, 7 tables verified.
+- ~~Schema not applied~~ — applied and confirmed.
+- ~~No storage bucket~~ — `asset-images` created (public, 5 MB, image MIME types
+  only).
+- ~~Database writes unverified~~ — nonces, profiles, asset drafts, and the audit
+  cache all verified working.

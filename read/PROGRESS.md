@@ -3,8 +3,8 @@
 Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
-**Last updated:** 2026-08-26 · after Phase 3
-**Overall:** 3 of 8 phases done · 93 contract tests passing · role API verified live · Supabase keys still needed
+**Last updated:** 2026-08-26 · after Phase 3 (Supabase live)
+**Overall:** 3 of 8 phases done · 93 contract tests + 84 API assertions passing · no blockers
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -25,8 +25,7 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 | 7 | Sepolia deploy + polish | ⬜ | — |
 | 8 | Docs + demo video + submission | ⬜ | — |
 
-⚠ **One blocker:** Supabase URL + service role key. Everything that writes to
-the database is built but unverified until those are in `.env.local`.
+Supabase is connected and verified. Rotate the secret key before the demo — it was shared in a chat log during setup.
 
 ---
 
@@ -165,21 +164,20 @@ Phase 5's Audit Trail page reads these via `queryFilter`, cached in Supabase.
 
 ## Phase 3 — Backend ✅ DONE
 
-Built and verified. Full detail in `phase-3-backend.md`.
+Built and fully verified. Detail in `phase-3-backend.md`.
 
 ```
 ✅ Next.js 16 app at apps/platform (App Router, TS, Tailwind 4)
-✅ supabase/schema.sql — 7 tables, RLS on everywhere, zero permissive policies
+✅ Supabase project live; schema applied; 7 tables with RLS on, zero policies
+✅ asset-images storage bucket created (public, 5MB, images only)
 ✅ lib/: env · crypto · hash · supabase · chain · session · siwe · authz · http · indexer
-✅ 11 API route handlers, all building clean
+✅ 13 API route handlers
 ✅ scripts/export-abi.ts keeps app ABIs in sync with artifacts
-✅ Role API verified live: 4 wallets, permissions match the contract matrix
-✅ Revocation cascade verified through HTTP (allowed=True → IDENTITY_REVOKED → restored)
-✅ Trust boundary verified: every protected route returns 401 unauthenticated
-
-⬜ BLOCKED on Supabase keys: nonce persistence, profiles, asset drafts, audit cache
-⬜ Apply schema.sql to a real Supabase project
-⬜ Create the storage bucket for asset images
+✅ scripts/seed-offchain.mjs seeds the off-chain half + storage bucket
+✅ scripts/verify-api.mjs — 84 assertions, 0 failures, real SIWE signatures
+✅ Canonical hashing aligned across chain seeder and app (tamper check verified)
+✅ Revocation cascade verified through HTTP
+✅ Least privilege verified: USER gets 403 on mint and audit, serial masked
 ```
 ## Phase 4 — Design system + landing ⬜
 
