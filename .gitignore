@@ -1,0 +1,34 @@
+# secrets — never commit
+.env
+.env.local
+.env.*.local
+
+# hardhat
+artifacts/
+cache/
+typechain-types/
+coverage/
+coverage.json
+
+# deployment output
+deployments/*.json
+!deployments/.gitkeep
+
+# node
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# next.js (added in later phases)
+.next/
+out/
+build/
+dist/
+
+# editors / os
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
