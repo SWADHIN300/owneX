@@ -6,20 +6,24 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 **Last updated:** 2026-08-26 · after Phase 2
 **Overall:** 2 of 8 phases done · 93 tests passing · nothing deployed to Sepolia yet
 
+> Detailed write-up for each finished phase lives beside this file:
+> `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
+> See `read/README.md` for the convention.
+
 ---
 
 ## Phase status
 
-| # | Phase | State |
-|---|---|---|
-| 1 | Smart contracts | ✅ done |
-| 2 | Tests + local deploy + demo seed | ✅ done |
-| 3 | Backend: Supabase + SIWE auth + role API | ⬜ next |
-| 4 | Design system + landing page | ⬜ |
-| 5 | Platform dashboard (all pages) | ⬜ |
-| 6 | Employee Portal (second app) | ⬜ |
-| 7 | Sepolia deploy + polish | ⬜ |
-| 8 | Docs + demo video + submission | ⬜ |
+| # | Phase | State | Write-up |
+|---|---|---|---|
+| 1 | Smart contracts | ✅ done | `phase-1-contracts.md` |
+| 2 | Tests + local deploy + demo seed | ✅ done | `phase-2-tests-and-deploy.md` |
+| 3 | Backend: Supabase + SIWE auth + role API | ⬜ next | — |
+| 4 | Design system + landing page | ⬜ | — |
+| 5 | Platform dashboard (all pages) | ⬜ | — |
+| 6 | Employee Portal (second app) | ⬜ | — |
+| 7 | Sepolia deploy + polish | ⬜ | — |
+| 8 | Docs + demo video + submission | ⬜ | — |
 
 ---
 
