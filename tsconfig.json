@@ -1,8 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "commonjs",
-    "moduleResolution": "node",
+    // node16 replaces the deprecated node10 resolution. Because this package has
+    // no "type": "module", TypeScript still emits CommonJS, which is what
+    // Hardhat and ts-node expect — so nothing about how scripts run changes.
+    "module": "node16",
+    "moduleResolution": "node16",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
