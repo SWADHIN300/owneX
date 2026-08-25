@@ -21,7 +21,14 @@ export function db(): SupabaseClient {
   const env = serverEnv();
   cached = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { "x-application-name": "ownex-platform" } },
+    global: {
+      headers: {
+        "x-application-name": "ownex-platform",
+        // Supabase rejects secret keys sent from anything that looks like a
+        // browser. Identify explicitly as a server so that check passes.
+        "User-Agent": "ownex-server/1.0",
+      },
+    },
   });
 
   return cached;
