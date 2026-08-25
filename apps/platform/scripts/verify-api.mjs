@@ -259,13 +259,25 @@ async function main() {
   // ── audit ─────────────────────────────────────────────────────────
   section("audit trail");
   {
+    // An incremental sync may legitimately index nothing: Hardhat replays
+    // deterministically, so the same accounts sending the same calldata with the
+    // same nonces produce identical transaction hashes across node restarts.
+    // Already-cached rows therefore still describe the live chain.
     const sync = await adminClient("/api/audit/sync", { method: "POST", body: JSON.stringify({}) });
     check("POST /api/audit/sync", sync.status === 200, sync.body?.error ?? "");
-    check("events indexed", (sync.body?.indexed ?? 0) > 0, `${sync.body?.indexed} events`);
+    check(
+      "incremental sync reports a count",
+      typeof sync.body?.indexed === "number",
+      `${sync.body?.indexed} new${sync.body?.resetDetected ? ", stale cache purged" : ""}`
+    );
 
-    const audit = await adminClient(`/api/audit?orgId=${ORG_ID}&limit=100`);
+    // A full re-index must see every event on chain.
+    const full = await adminClient("/api/audit/sync", { method: "POST", body: JSON.stringify({ fromBlock: 0 }) });
+    check("full re-index sees events", (full.body?.indexed ?? 0) > 0, `${full.body?.indexed} events`);
+
+    const audit = await adminClient(`/api/audit?orgId=${ORG_ID}&limit=200`);
     check("GET /api/audit", audit.status === 200);
-    check("events returned", (audit.body?.events?.length ?? 0) > 0, `${audit.body?.events?.length} rows`);
+    check("cache populated", (audit.body?.events?.length ?? 0) > 0, `${audit.body?.events?.length} rows`);
 
     const names = new Set((audit.body?.events ?? []).map((e) => e.event));
     for (const expected of ["IdentityRegistered", "OrganizationCreated", "MemberAdded", "RoleAssigned", "AssetMinted"]) {
@@ -276,10 +288,28 @@ async function main() {
     check("event carries a tx hash", /^0x[0-9a-f]{64}$/i.test(minted?.txHash ?? ""));
     check("role decoded to a name", (audit.body?.events ?? []).some((e) => ["ADMIN", "MANAGER", "AUDITOR", "USER"].includes(e.payload?.role)));
 
-    const idempotent = await adminClient("/api/audit/sync", { method: "POST", body: JSON.stringify({ fromBlock: 0 }) });
-    check("re-sync is idempotent", idempotent.status === 200);
+    // Re-indexing the same range again must not create duplicate rows.
+    await adminClient("/api/audit/sync", { method: "POST", body: JSON.stringify({ fromBlock: 0 }) });
     const after = await adminClient(`/api/audit?orgId=${ORG_ID}&limit=200`);
-    check("no duplicate rows created", after.body?.events?.length === audit.body?.events?.length, `${after.body?.events?.length} vs ${audit.body?.events?.length}`);
+    check(
+      "re-index is idempotent — no duplicate rows",
+      after.body?.events?.length === audit.body?.events?.length,
+      `${after.body?.events?.length} vs ${audit.body?.events?.length}`
+    );
+
+    // Every cached transaction must still exist on the live chain.
+    const sample = (audit.body?.events ?? []).slice(0, 3);
+    const stale = [];
+    for (const event of sample) {
+      const res = await fetch(process.env.RPC_URL ?? "http://127.0.0.1:8545", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getTransactionReceipt", params: [event.txHash] }),
+      });
+      const json = await res.json();
+      if (!json.result) stale.push(event.txHash);
+    }
+    check("cached events exist on the live chain", stale.length === 0, stale.length ? `stale: ${stale.join(", ")}` : "");
   }
 
   // ── plain user ────────────────────────────────────────────────────
@@ -357,6 +387,40 @@ async function main() {
     check("session works before logout", (await client("/api/identity/me")).status === 200);
     check("POST /api/auth/logout", (await client("/api/auth/logout", { method: "POST" })).status === 200);
     check("session refused after logout", (await client("/api/identity/me")).status === 401);
+  }
+
+  // ── cleanup ───────────────────────────────────────────────────────
+  // The draft created above is never minted, so remove it. Without this,
+  // every run would leave another orphan row in the pending list.
+  if (draft?.assetId) {
+    section("cleanup");
+    try {
+      const { createClient } = await import("@supabase/supabase-js");
+      const { readFileSync } = await import("node:fs");
+      const { dirname, join } = await import("node:path");
+      const { fileURLToPath } = await import("node:url");
+
+      const root = join(dirname(fileURLToPath(import.meta.url)), "..");
+      const env = Object.fromEntries(
+        readFileSync(join(root, ".env.local"), "utf8")
+          .split(/\r?\n/)
+          .filter((l) => l.includes("=") && !l.trim().startsWith("#"))
+          .map((l) => {
+            const i = l.indexOf("=");
+            return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
+          })
+      );
+
+      const sb = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { persistSession: false },
+        global: { headers: { "User-Agent": "ownex-server/1.0" } },
+      });
+
+      const { error } = await sb.from("assets").delete().eq("id", draft.assetId).is("token_id", null);
+      check("test draft removed", !error, error?.message ?? "");
+    } catch (error) {
+      check("test draft removed", false, error.message);
+    }
   }
 
   // ── summary ───────────────────────────────────────────────────────

@@ -7,7 +7,7 @@ access control, and NFT-backed asset ownership, with a tamper-evident audit
 trail. Built for Smart India Hackathon.
 
 ```
-93 contract tests passing  ·  84 API assertions passing  ·  3 of 8 phases done
+93 contract tests passing  ·  86 API assertions passing  ·  3 of 8 phases done
 ```
 
 ---
@@ -136,28 +136,47 @@ npm test                 # 93 passing
 ### Full local stack
 
 ```bash
+npm run setup            # installs both packages, compiles, exports ABIs
+
 # terminal 1 — leave running
-npx hardhat node
+npm run dev:chain
 
 # terminal 2
-npm run deploy:local
-npm run seed:local
-
-cd apps/platform
-npm install
-cp .env.local.example .env.local     # fill in Supabase keys
-npm run seed:offchain                # seeds Supabase + creates storage bucket
-npm run dev                          # http://localhost:3000
+npm run seed:all         # deploy + seed chain + export ABIs + seed Supabase
+npm run dev:platform     # http://localhost:3000
 ```
 
 Apply `supabase/schema.sql` in the Supabase SQL editor once, before the first
-`seed:offchain`.
+`seed:all`, and fill in `apps/platform/.env.local` from `.env.local.example`.
 
 Verify everything works:
 
 ```bash
-node scripts/verify-api.mjs          # 84 assertions
+npm run verify:all       # 93 contract tests + 86 API assertions
 ```
+
+### All commands
+
+| Command | Does |
+|---|---|
+| `npm run setup` | install both packages, compile, export ABIs |
+| `npm test` | 93 contract tests |
+| `npm run dev:chain` | local Hardhat node on :8545 |
+| `npm run dev:platform` | Next.js dev server on :3000 |
+| `npm run deploy:local` | deploy the three contracts |
+| `npm run seed:local` | seed the chain (org, members, assets) |
+| `npm run seed:offchain` | seed Supabase + create the storage bucket |
+| `npm run seed:all` | deploy + seed chain + export ABIs + seed Supabase |
+| `npm run export:abi` | refresh app ABIs from artifacts |
+| `npm run verify:api` | 86 API assertions against a live stack |
+| `npm run verify:all` | contract tests + API assertions |
+| `npm run typecheck` | typecheck the platform app |
+| `npm run deploy:sepolia` | deploy to Sepolia (Phase 7) |
+
+There is no Turborepo. Two independent packages with their own `node_modules`,
+orchestrated by the scripts above. Hoisting Hardhat and Next into one dependency
+tree risks disturbing the pinned `typescript@5.7.3` that Hardhat's `ts-node`
+requires on Node 25, and task caching buys nothing at two packages.
 
 MetaMask local network:
 
@@ -295,8 +314,8 @@ Contracts — npm test
   OrgAccessManager   34  RBAC, self-promotion block, expiry, overrides, apps
   AssetNFT           35  org-gated mint, transfer lock, revocation, pause
 
-API — node apps/platform/scripts/verify-api.mjs
-  84 passed, 0 failed
+API — npm run verify:api
+  86 passed, 0 failed
   real SIWE signatures, live chain, live Supabase
 ```
 

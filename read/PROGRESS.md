@@ -4,7 +4,7 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
 **Last updated:** 2026-08-26 · after Phase 3 (Supabase live)
-**Overall:** 3 of 8 phases done · 93 contract tests + 84 API assertions passing · no blockers
+**Overall:** 3 of 8 phases done · 93 contract tests + 86 API assertions passing · no blockers
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -174,7 +174,7 @@ Built and fully verified. Detail in `phase-3-backend.md`.
 ✅ 13 API route handlers
 ✅ scripts/export-abi.ts keeps app ABIs in sync with artifacts
 ✅ scripts/seed-offchain.mjs seeds the off-chain half + storage bucket
-✅ scripts/verify-api.mjs — 84 assertions, 0 failures, real SIWE signatures
+✅ scripts/verify-api.mjs — 86 assertions, 0 failures, real SIWE signatures
 ✅ Canonical hashing aligned across chain seeder and app (tamper check verified)
 ✅ Revocation cascade verified through HTTP
 ✅ Least privilege verified: USER gets 403 on mint and audit, serial masked

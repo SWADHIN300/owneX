@@ -83,13 +83,17 @@ export const GET = handler(async (request: Request) => {
   // Display name only — never contact details or any encrypted field.
   // Deliberately non-fatal: the authorization answer comes from the chain, so a
   // database hiccup must not turn a valid "allowed" into a 500.
-  const profile = await db()
-    .from("profiles")
-    .select("display_name, job_title, department")
-    .eq("wallet_address", wallet.toLowerCase())
-    .maybeSingle()
-    .then((r) => r.data)
-    .catch(() => null);
+  let profile: { display_name: string; job_title: string | null; department: string | null } | null = null;
+  try {
+    const result = await db()
+      .from("profiles")
+      .select("display_name, job_title, department")
+      .eq("wallet_address", wallet.toLowerCase())
+      .maybeSingle();
+    profile = result.data;
+  } catch {
+    profile = null;
+  }
 
   const allowed = reason === null;
 

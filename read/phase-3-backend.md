@@ -127,7 +127,7 @@ GET  /api/roles/verify ()   400 BAD_REQUEST
 Every protected endpoint refuses an unauthenticated caller. There is no code
 path that reads a wallet address from a request body.
 
-### Full end-to-end verification — 84 assertions, 0 failures
+### Full end-to-end verification — 86 assertions, 0 failures
 
 Supabase live, schema applied, seeded on both sides. `scripts/verify-api.mjs`
 performs real SIWE logins with real signatures and exercises every route:
@@ -251,13 +251,27 @@ built and verified.
 - No CSRF token on state-changing routes. `sameSite: lax` plus JSON-only bodies
   covers the realistic cases for a PoC.
 - No automated tests for the route handlers in CI. `scripts/verify-api.mjs`
-  covers 84 assertions but must be run manually against a live stack.
+  covers 86 assertions but must be run manually against a live stack.
 - Expired nonces accumulate until `purge_expired_nonces()` is called. Harmless,
   but should be scheduled.
 - Asset images are not uploaded yet — the `asset-images` bucket exists and is
   public, but the upload path is Phase 5 UI work.
 - Supabase secret key has been shared in a chat log during setup and should be
   rotated before the demo.
+
+### Indexer: local chain restarts
+
+Hardhat replays deterministically — the same accounts sending the same calldata
+with the same nonces produce **identical transaction hashes** across node
+restarts. A cached audit row therefore usually still describes the live chain
+after a restart, and an incremental sync legitimately reports zero new events.
+
+The indexer also guards the case where that does not hold: before syncing it
+takes the newest cached transaction and asks the chain whether it exists. If the
+receipt is missing, the cache belongs to a chain that is gone, so those rows are
+dropped and indexing restarts from block zero. One extra RPC call per sync, and
+local development becomes safe to restart. That path is defensive and has not
+been triggered in practice, precisely because of the deterministic hashes above.
 
 ### Resolved during this phase
 

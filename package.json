@@ -8,12 +8,25 @@
     "compile": "hardhat compile",
     "test": "hardhat test",
     "coverage": "hardhat coverage",
+    "clean": "hardhat clean",
+
     "node": "hardhat node",
+    "dev:chain": "hardhat node",
+    "dev:platform": "npm --prefix apps/platform run dev",
+
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "seed:local": "hardhat run scripts/seed-demo.ts --network localhost",
     "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
     "export:abi": "hardhat run scripts/export-abi.ts",
-    "clean": "hardhat clean"
+
+    "seed:offchain": "npm --prefix apps/platform run seed:offchain",
+    "seed:all": "npm run deploy:local && npm run seed:local && npm run export:abi && npm run seed:offchain",
+
+    "verify:api": "node apps/platform/scripts/verify-api.mjs",
+    "verify:all": "npm test && npm run verify:api",
+
+    "setup": "npm install && npm --prefix apps/platform install && npm run compile && npm run export:abi",
+    "typecheck": "npm --prefix apps/platform run typecheck"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

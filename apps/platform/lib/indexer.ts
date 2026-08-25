@@ -1,7 +1,7 @@
 import type { Contract, Log, EventLog } from "ethers";
 import { db } from "./supabase";
 import { serverEnv } from "./env";
-import { identityRegistry, accessManager, assetNFT, roleName } from "./chain";
+import { identityRegistry, accessManager, assetNFT, roleName, provider } from "./chain";
 
 /**
  * Event indexer.
@@ -134,7 +134,46 @@ export type SyncResult = {
   toBlock: number;
   indexed: number;
   perContract: Record<string, number>;
+  resetDetected: boolean;
 };
+
+/**
+ * Detects that the chain behind the cache has been replaced.
+ *
+ * Restarting a local Hardhat node resets block numbers to zero while producing
+ * entirely new transaction hashes. Height alone therefore cannot tell you the
+ * chain is different — a cached `last_block` of 26 looks perfectly valid against
+ * a brand-new chain that also happens to be at block 26, so the indexer would
+ * skip everything and the dead chain's events would linger forever beside live
+ * ones.
+ *
+ * Instead, take the most recent cached transaction and ask the chain whether it
+ * exists. If it does not, the cache belongs to a chain that is gone: drop those
+ * rows and re-index from zero. Costs one RPC call per sync and makes local
+ * development safe to restart.
+ */
+async function detectChainReset(contractName: string): Promise<boolean> {
+  const supabase = db();
+
+  const { data: newest } = await supabase
+    .from("audit_cache")
+    .select("tx_hash")
+    .eq("contract_name", contractName)
+    .order("block_number", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!newest?.tx_hash) return false; // nothing cached, nothing to invalidate
+
+  const receipt = await provider().getTransactionReceipt(newest.tx_hash);
+  return receipt === null;
+}
+
+async function purgeContractCache(contractName: string, contractAddress: string): Promise<void> {
+  const supabase = db();
+  await supabase.from("audit_cache").delete().eq("contract_name", contractName);
+  await supabase.from("indexer_state").delete().eq("contract_address", contractAddress);
+}
 
 export async function syncEvents(options: { fromBlock?: number } = {}): Promise<SyncResult> {
   const env = serverEnv();
@@ -146,13 +185,20 @@ export async function syncEvents(options: { fromBlock?: number } = {}): Promise<
     { name: "AssetNFT", contract: assetNFT() },
   ];
 
-  const latest = await contracts[0].contract.runner!.provider!.getBlockNumber();
+  const latest = await provider().getBlockNumber();
   const perContract: Record<string, number> = {};
   let total = 0;
   let overallFrom = latest;
+  let resetDetected = false;
 
   for (const { name, contract } of contracts) {
     const address = await contract.getAddress();
+
+    // Invalidate the cache if it describes a chain that no longer exists.
+    if (await detectChainReset(name)) {
+      await purgeContractCache(name, address);
+      resetDetected = true;
+    }
 
     const { data: state } = await supabase
       .from("indexer_state")
@@ -160,7 +206,14 @@ export async function syncEvents(options: { fromBlock?: number } = {}): Promise<
       .eq("contract_address", address)
       .maybeSingle();
 
-    const from = options.fromBlock ?? (state ? Number(state.last_block) + 1 : 0);
+    let from = options.fromBlock ?? (state ? Number(state.last_block) + 1 : 0);
+    // A stored height beyond the chain tip also means the chain was replaced.
+    if (from > latest + 1) {
+      await purgeContractCache(name, address);
+      resetDetected = true;
+      from = 0;
+    }
+
     overallFrom = Math.min(overallFrom, from);
     let indexedHere = 0;
 
@@ -212,5 +265,5 @@ export async function syncEvents(options: { fromBlock?: number } = {}): Promise<
     total += indexedHere;
   }
 
-  return { chainId: env.CHAIN_ID, fromBlock: overallFrom, toBlock: latest, indexed: total, perContract };
+  return { chainId: env.CHAIN_ID, fromBlock: overallFrom, toBlock: latest, indexed: total, perContract, resetDetected };
 }
