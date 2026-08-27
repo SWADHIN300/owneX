@@ -1,3 +1,4 @@
+import { AnnouncementBar } from "@/components/landing/announcement-bar";
 import { Capabilities } from "@/components/landing/capabilities";
 import { Evidence } from "@/components/landing/evidence";
 import { Hero } from "@/components/landing/hero";
@@ -9,9 +10,10 @@ import { SplitExplainer } from "@/components/landing/split-explainer";
 /**
  * owneX landing page.
  *
- * The shell and copy render on the server; only the sections that animate or
- * hold state are client components, so the first paint is HTML and the page has
- * no layout shift.
+ * A deep green canvas with an oversized monospace display face. The hero owns the
+ * first viewport; the sections below carry the explanation, because unlike a
+ * wallet this product has to say what identity, access and custody mean before a
+ * visitor can judge it.
  */
 export default function HomePage() {
   return (
@@ -25,6 +27,7 @@ export default function HomePage() {
         <Evidence />
       </main>
       <SiteFooter />
+      <AnnouncementBar />
     </>
   );
 }

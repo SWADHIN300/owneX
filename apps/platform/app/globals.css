@@ -1,107 +1,121 @@
 @import "tailwindcss";
 
-/* Dark mode is class-driven so next-themes can own the switch and the
- * pre-paint script can avoid a flash. `.dark` on <html> flips every token. */
-@custom-variant dark (&:is(.dark *));
+/* Dark is class-driven so next-themes owns the switch and the pre-paint script
+ * avoids a flash. `.light` is the alternate; the deep green below is the base. */
+@custom-variant light (&:is(.light *));
 
 /* ==========================================================================
-   Light theme. White canvas, deep teal brand (#003C38).
+   Primary theme: deep green canvas, pale ice ink.
+
+   Not near-black. The canvas is a saturated dark green in the same family as
+   the brand (#003C38), which is what gives the page its temperature. Ink is a
+   pale ice blue rather than white, because pure white on saturated green
+   vibrates.
    ========================================================================== */
 :root {
-  --background: #ffffff;
-  --surface: #ffffff;
-  --surface-2: #f5f8f7;
-  --surface-3: #eef3f2;
+  --background: #052e29;
+  --surface: #073a34;
+  --surface-2: #0a443d;
+  --surface-3: #0e5049;
 
-  --ink: #0e1614;
-  --ink-muted: #566663;
-  --ink-faint: #7d8d8a;
+  --ink: #d6ecf5;
+  --ink-muted: #9dc0c8;
+  --ink-faint: #6f9199;
 
-  --brand: #003c38;
-  --brand-hover: #00524d;
-  --brand-ink: #ffffff;
-  --brand-soft: #eef4f3;
-  --brand-line: #c2d5d2;
+  --brand: #35c9ad;
+  --brand-hover: #52dcc1;
+  --brand-ink: #032420;
+  --brand-soft: #0b3f38;
+  --brand-line: #1c6659;
 
-  --accent: #00735f;
-  --accent-ink: #ffffff;
-  --data: #2549c9;
-  --success: #1a7a4f;
-  --warn: #8a5a12;
-  --danger: #b03636;
+  --accent: #7fe9d0;
+  --accent-ink: #032420;
+  /* The warm counterpoint. One warm colour against all that green is what stops
+     the page reading as monochrome. */
+  --flare: #ff7a2f;
+  --flare-ink: #2a0f02;
 
-  --border: #d6e0dd;
-  --border-soft: #e9efee;
-  --ring: #00735f;
+  --data: #9db8ff;
+  --success: #58d99b;
+  --warn: #e8b366;
+  --danger: #ff8f8f;
 
-  --grid-line: rgba(0, 60, 56, 0.06);
-  --glow: rgba(0, 128, 108, 0.18);
+  --border: #14514a;
+  --border-soft: #0d423c;
+  --ring: #7fe9d0;
 
-  /* Six named gradients, all derived from the teal family so the set reads as
-     one system instead of six unrelated washes. */
-  --gradient-dawn: linear-gradient(135deg, #ffffff 0%, #eef4f3 55%, #dcebe8 100%);
-  --gradient-aurora: linear-gradient(135deg, #003c38 0%, #00806c 55%, #35c9ad 100%);
-  --gradient-deep: linear-gradient(160deg, #00302d 0%, #003c38 45%, #062421 100%);
-  --gradient-canopy: linear-gradient(135deg, #00524d 0%, #1a7a4f 100%);
-  --gradient-sand: linear-gradient(135deg, #f7f5f0 0%, #ece7dc 100%);
-  --gradient-dusk: linear-gradient(135deg, #10302f 0%, #24384d 100%);
+  --grid-line: rgba(214, 236, 245, 0.045);
+  --glow: rgba(53, 201, 173, 0.18);
 
-  --shadow-sm: 0 1px 2px rgba(14, 22, 20, 0.05);
-  --shadow-md: 0 2px 4px rgba(14, 22, 20, 0.04), 0 8px 20px -10px rgba(0, 60, 56, 0.18);
-  --shadow-lg: 0 4px 8px rgba(14, 22, 20, 0.05), 0 24px 48px -20px rgba(0, 60, 56, 0.26);
-  --shadow-glow: 0 0 0 1px var(--brand-line), 0 8px 32px -12px var(--glow);
+  --gradient-dawn: linear-gradient(135deg, #073a34 0%, #0a443d 55%, #0e5049 100%);
+  --gradient-aurora: linear-gradient(135deg, #052e29 0%, #1c8f7c 55%, #7fe9d0 100%);
+  --gradient-deep: linear-gradient(160deg, #063731 0%, #04211e 45%, #021411 100%);
+  --gradient-canopy: linear-gradient(135deg, #0e5049 0%, #2b8f63 100%);
+  --gradient-sand: linear-gradient(135deg, #2a2118 0%, #3a2c1d 100%);
+  --gradient-dusk: linear-gradient(135deg, #06302c 0%, #16283f 100%);
+  --gradient-flare: linear-gradient(135deg, #ff7a2f 0%, #c74a12 100%);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.45), 0 32px 64px -28px rgba(0, 0, 0, 0.85);
+  --shadow-glow: 0 0 0 1px var(--brand-line), 0 12px 44px -16px var(--glow);
 
   --radius: 0.75rem;
 }
 
 /* ==========================================================================
-   Dark theme. Near-black canvas, the brand lifts so it stays legible.
+   Alternate theme: green-tinted off-white. Not pure white, so the two themes
+   feel like one family rather than two products.
    ========================================================================== */
-.dark {
-  --background: #060908;
-  --surface: #0d1413;
-  --surface-2: #131c1a;
-  --surface-3: #1a2523;
+.light {
+  --background: #f1f6f4;
+  --surface: #ffffff;
+  --surface-2: #e9f1ee;
+  --surface-3: #dfeae6;
 
-  --ink: #e9f1ef;
-  --ink-muted: #9cadaa;
-  --ink-faint: #74857f;
+  --ink: #062521;
+  --ink-muted: #47605b;
+  --ink-faint: #6d857f;
 
-  --brand: #14a091;
-  --brand-hover: #1cb9a8;
-  --brand-ink: #04110f;
-  --brand-soft: #10201e;
-  --brand-line: #1f4a45;
+  --brand: #00534c;
+  --brand-hover: #006c62;
+  --brand-ink: #ffffff;
+  --brand-soft: #e2eeeb;
+  --brand-line: #b9d3cd;
 
-  --accent: #5cf2d6;
-  --accent-ink: #04110f;
-  --data: #8aa2ff;
-  --success: #52d38f;
-  --warn: #e0a458;
-  --danger: #ef7d7d;
+  --accent: #00695c;
+  --accent-ink: #ffffff;
+  --flare: #b8480f;
+  --flare-ink: #ffffff;
 
-  --border: #22302e;
-  --border-soft: #182422;
-  --ring: #5cf2d6;
+  --data: #24439f;
+  --success: #14663f;
+  --warn: #7a4a10;
+  --danger: #9d2f2f;
 
-  --grid-line: rgba(233, 241, 239, 0.05);
-  --glow: rgba(92, 242, 214, 0.16);
+  --border: #cddcd7;
+  --border-soft: #dfeae6;
+  --ring: #00695c;
 
-  --gradient-dawn: linear-gradient(135deg, #0d1413 0%, #10201e 55%, #13292611 100%);
-  --gradient-aurora: linear-gradient(135deg, #04211f 0%, #0e8c80 55%, #5cf2d6 100%);
-  --gradient-deep: linear-gradient(160deg, #0a1917 0%, #04110f 45%, #020807 100%);
-  --gradient-canopy: linear-gradient(135deg, #0e8c80 0%, #2f9e6a 100%);
-  --gradient-sand: linear-gradient(135deg, #1b1d1a 0%, #262722 100%);
-  --gradient-dusk: linear-gradient(135deg, #0c1f1e 0%, #17233a 100%);
+  --grid-line: rgba(6, 37, 33, 0.055);
+  --glow: rgba(0, 105, 92, 0.14);
 
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.5), 0 10px 24px -12px rgba(0, 0, 0, 0.8);
-  --shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.55), 0 28px 60px -24px rgba(0, 0, 0, 0.9);
-  --shadow-glow: 0 0 0 1px var(--brand-line), 0 10px 40px -14px var(--glow);
+  --gradient-dawn: linear-gradient(135deg, #ffffff 0%, #e9f1ee 55%, #d8e8e3 100%);
+  --gradient-aurora: linear-gradient(135deg, #00302c 0%, #00695c 55%, #35c9ad 100%);
+  --gradient-deep: linear-gradient(160deg, #063731 0%, #04211e 45%, #021411 100%);
+  --gradient-canopy: linear-gradient(135deg, #00534c 0%, #17714a 100%);
+  --gradient-sand: linear-gradient(135deg, #f7f4ee 0%, #ebe4d8 100%);
+  --gradient-dusk: linear-gradient(135deg, #0f302e 0%, #1f2d44 100%);
+  --gradient-flare: linear-gradient(135deg, #d95a17 0%, #a13c0c 100%);
+
+  --shadow-sm: 0 1px 2px rgba(6, 37, 33, 0.05);
+  --shadow-md: 0 2px 4px rgba(6, 37, 33, 0.04), 0 10px 24px -12px rgba(0, 83, 76, 0.18);
+  --shadow-lg: 0 4px 8px rgba(6, 37, 33, 0.05), 0 28px 56px -24px rgba(0, 83, 76, 0.26);
+  --shadow-glow: 0 0 0 1px var(--brand-line), 0 10px 36px -14px var(--glow);
 }
 
 /* ==========================================================================
-   Tailwind token bridge. Every value above becomes a utility.
+   Tailwind token bridge
    ========================================================================== */
 @theme inline {
   --color-background: var(--background);
@@ -121,6 +135,8 @@
 
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-flare: var(--flare);
+  --color-flare-ink: var(--flare-ink);
   --color-data: var(--data);
   --color-success: var(--success);
   --color-warn: var(--warn);
@@ -131,7 +147,8 @@
   --color-ring: var(--ring);
 
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-mono: var(--font-martian-mono);
+  --font-display: var(--font-martian-mono);
 
   --radius-xs: 0.375rem;
   --radius-sm: 0.5rem;
@@ -155,8 +172,8 @@
 
   html {
     scroll-behavior: smooth;
-    /* Section anchors clear the sticky header. */
     scroll-padding-top: 5rem;
+    background-color: var(--background);
   }
 
   body {
@@ -173,8 +190,8 @@
   }
 
   ::selection {
-    background-color: var(--brand);
-    color: var(--brand-ink);
+    background-color: var(--accent);
+    color: var(--accent-ink);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -212,8 +229,10 @@
 @utility gradient-dusk {
   background-image: var(--gradient-dusk);
 }
+@utility gradient-flare {
+  background-image: var(--gradient-flare);
+}
 
-/** Engineering grid, used behind the hero and data sections. */
 @utility grid-backdrop {
   background-image:
     linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
@@ -221,31 +240,46 @@
   background-size: 56px 56px;
 }
 
-/** Frosted panel. Falls back to a solid surface where backdrop-filter is out. */
 @utility glass {
   background-color: color-mix(in srgb, var(--surface) 72%, transparent);
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
 
-/** Uppercase micro label used for field names and section eyebrows. */
+/** Uppercase micro label. Monospace, because these sit next to protocol data. */
 @utility label-xs {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-family: var(--font-martian-mono), ui-monospace, monospace;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-/** Oversized editorial heading treatment. */
+/**
+ * Oversized display type. Martian Mono is wide, so tracking is pulled in hard
+ * and the line box is tightened to let lines stack the way the reference does.
+ */
 @utility display {
+  font-family: var(--font-martian-mono), ui-monospace, monospace;
+  font-weight: 800;
+  letter-spacing: -0.055em;
+  line-height: 0.86;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+/** Smaller headings: same face, less extreme. */
+@utility display-sm {
+  font-family: var(--font-martian-mono), ui-monospace, monospace;
+  font-weight: 700;
   letter-spacing: -0.04em;
-  line-height: 0.96;
+  line-height: 1;
   text-wrap: balance;
 }
 
 @utility page-container {
   margin-inline: auto;
   width: 100%;
-  max-width: 82rem;
-  padding-inline: 1rem;
+  max-width: 84rem;
+  padding-inline: 1.25rem;
 }

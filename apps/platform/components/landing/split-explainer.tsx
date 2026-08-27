@@ -53,7 +53,7 @@ export function SplitExplainer() {
         <div className="mb-12 grid gap-6 md:grid-cols-2 md:items-end">
           <div>
             <p className="label-xs mb-4 text-accent">The split</p>
-            <h2 className="display text-3xl font-semibold text-ink sm:text-4xl">
+            <h2 className="display-sm text-3xl font-semibold text-ink sm:text-4xl">
               Proof on the chain.
               <br />
               Personal data off it.
@@ -106,7 +106,7 @@ export function SplitExplainer() {
               </p>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <code
                 className={cn(
                   "rounded-sm border px-2.5 py-1.5 font-mono text-xs transition-colors duration-300",

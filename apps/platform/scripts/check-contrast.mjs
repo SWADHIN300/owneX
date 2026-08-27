@@ -77,10 +77,13 @@ const PAIRS = [
   ["warn", "surface", 4.5, "warning text on card"],
   ["danger", "surface", 4.5, "danger text on card"],
   ["ring", "background", 3.0, "focus ring on page"],
+  ["flare", "background", 4.5, "warm accent text on page"],
+  ["flare", "surface", 4.5, "warm accent text on card"],
+  ["flare-ink", "flare", 4.5, "label on warm accent fill"],
   ["border", "surface", 1.3, "border against card"],
 ];
 
-const themes = { light: block(":root"), dark: block("\\.dark") };
+const themes = { green: block(":root"), light: block("\\.light") };
 const failures = [];
 const rows = [];
 

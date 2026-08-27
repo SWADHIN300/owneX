@@ -25,7 +25,7 @@ export function SiteFooter() {
         <GlassCard gradient="deep" padding="lg" className="mb-12">
           <div className="grid gap-8 lg:grid-cols-[1.4fr_1fr] lg:items-center">
             <div>
-              <h2 className="display mb-4 text-3xl font-semibold text-white sm:text-4xl">
+              <h2 className="display-sm mb-4 text-3xl font-semibold text-white sm:text-4xl">
                 Own what is yours.
                 <br />
                 Prove it onchain.

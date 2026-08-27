@@ -4,21 +4,21 @@ import type { ReactNode } from "react";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 
 /**
- * Light and dark mode.
+ * Theme switching.
  *
- * White is the primary theme, so it is the default and the app does not follow
- * the operating system preference. Dark is opt-in through the header toggle, and
- * the choice is remembered for the next visit.
+ * The deep green canvas is the primary theme, so it lives on `:root` in
+ * globals.css and is the default here. `.light` is the green-tinted alternate.
+ * The system preference is not followed, because the green canvas is the brand
+ * rather than a mode.
  *
- * `attribute="class"` puts `.dark` on <html>, which is what the token layer in
- * globals.css switches on. next-themes injects its own pre-paint script, so a
- * visitor who chose dark never sees a flash of white on load.
+ * next-themes injects its own pre-paint script, so a visitor who chose light
+ * never sees a flash of green on load, and the choice persists.
  */
 export function ThemeProvider({ children }: { children: ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="light"
+      defaultTheme="dark"
       themes={["light", "dark"]}
       enableSystem={false}
       disableTransitionOnChange

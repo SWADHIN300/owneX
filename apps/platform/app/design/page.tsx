@@ -35,7 +35,7 @@ export default function DesignSystemPage() {
 
       <main className="page-container flex-1 py-12">
         <div className="mb-12 max-w-2xl">
-          <h1 className="display mb-3 text-3xl font-semibold text-ink sm:text-4xl">
+          <h1 className="display-sm mb-3 text-3xl font-semibold text-ink sm:text-4xl">
             Design system
           </h1>
           <p className="text-base leading-relaxed text-ink-muted">

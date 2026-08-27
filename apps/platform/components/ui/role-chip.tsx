@@ -97,7 +97,9 @@ export function VerificationBadge({
       data-slot="verification-badge"
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1",
-        "text-[0.6875rem] leading-none font-semibold whitespace-nowrap",
+        "text-[0.6875rem] leading-none font-semibold",
+        // The hint makes this long enough to need wrapping on narrow screens.
+        withHint ? "whitespace-normal" : "whitespace-nowrap",
         STATE_STYLE[state],
         className,
       )}

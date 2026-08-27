@@ -32,7 +32,7 @@ export function Evidence() {
         <div className="mb-12 grid gap-6 md:grid-cols-2 md:items-end">
           <div>
             <p className="label-xs mb-4 text-accent">Evidence</p>
-            <h2 className="display text-3xl font-semibold text-ink sm:text-4xl">
+            <h2 className="display-sm text-3xl font-semibold text-ink sm:text-4xl">
               Already proven,
               <br />
               not theoretical.
@@ -49,7 +49,7 @@ export function Evidence() {
             <GlassCard key={metric.label} padding="md">
               <dt className="sr-only">{metric.label}</dt>
               <dd>
-                <span className="display block text-4xl font-semibold text-brand">
+                <span className="block font-mono text-4xl font-bold tracking-tight text-accent">
                   {metric.value}
                 </span>
                 <span className="mt-1.5 block text-xs text-ink-muted">

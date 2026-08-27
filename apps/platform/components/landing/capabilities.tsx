@@ -80,7 +80,7 @@ export function Capabilities() {
         <div className="mb-12 grid gap-6 md:grid-cols-2 md:items-end">
           <div>
             <p className="label-xs mb-4 text-accent">Capabilities</p>
-            <h2 className="display text-3xl font-semibold text-ink sm:text-4xl">
+            <h2 className="display-sm text-3xl font-semibold text-ink sm:text-4xl">
               Four decisions that
               <br />
               carry the design.

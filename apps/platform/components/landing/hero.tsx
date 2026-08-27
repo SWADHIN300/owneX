@@ -1,75 +1,95 @@
-import { MeshBackdrop } from "./mesh-backdrop";
-import { Badge, Button } from "@/components/ui";
+"use client";
+
+import { motion, useReducedMotion } from "framer-motion";
+
+import { HeroObject } from "./hero-object";
 
 const META = [
-  { label: "Identity", value: "Wallet-bound DID" },
+  { label: "Identity", value: "W3C DID" },
   { label: "Access", value: "Onchain RBAC" },
-  { label: "Assets", value: "ERC-721 custody" },
-  { label: "Audit", value: "Immutable events" },
+  { label: "Assets", value: "ERC-721" },
+  { label: "Audit", value: "Immutable" },
 ];
 
+/**
+ * Full-viewport hero.
+ *
+ * Reading order is label, headline, one supporting sentence, then the action. The
+ * stone sits below all of it and breaks the bottom edge, so nothing overlaps the
+ * type. The metadata rail carries extra bottom padding on small screens, where the
+ * announcement strip would otherwise sit on top of it.
+ */
 export function Hero() {
+  const reduceMotion = useReducedMotion();
+  const lines = ["Own it.", "Prove it.", "Onchain."];
+
   return (
     <section
       id="top"
-      className="grid-backdrop relative overflow-hidden border-b border-border"
+      className="relative flex min-h-[100svh] flex-col overflow-hidden bg-background"
     >
-      {/* Warm corner wash so the grid fades instead of stopping at the edge. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            "radial-gradient(110% 80% at 78% 12%, var(--brand-soft), transparent 60%)",
-        }}
-      />
+      <div aria-hidden className="grid-backdrop absolute inset-0 opacity-70" />
 
-      <div className="page-container relative grid items-center gap-10 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8 lg:py-24">
-        <div className="flex flex-col items-start">
-          <div className="mb-6 flex flex-wrap items-center gap-2">
-            <Badge tone="brand">Decentralised trust infrastructure</Badge>
-            <Badge tone="neutral" mono>
-              EVM COMPATIBLE
-            </Badge>
-          </div>
+      <div className="page-container relative z-20 flex flex-1 flex-col items-center justify-center pt-28 pb-[26rem] text-center sm:pb-[24rem] lg:pb-[22rem]">
+        <motion.p
+          initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: reduceMotion ? 0 : 0.5 }}
+          className="label-xs mb-7 text-accent"
+        >
+          Decentralised trust infrastructure
+        </motion.p>
 
-          <h1 className="display mb-6 text-4xl font-semibold text-ink sm:text-5xl lg:text-6xl">
-            Own it.
-            <br />
-            Prove it.
-            <br />
-            <span className="text-accent">Onchain.</span>
-          </h1>
+        <h1 className="display mb-8 text-ink">
+          {lines.map((line, index) => (
+            <motion.span
+              key={line}
+              className="block text-[clamp(2.5rem,11.5vw,9rem)]"
+              initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 26 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: reduceMotion ? 0 : 0.7,
+                delay: reduceMotion ? 0 : index * 0.1,
+                ease: [0.22, 1, 0.36, 1],
+              }}
+            >
+              {line}
+            </motion.span>
+          ))}
+        </h1>
 
-          <p className="mb-8 max-w-lg text-base leading-relaxed text-ink-muted sm:text-lg">
-            owneX gives an organisation verifiable identities, permissions
-            enforced by smart contracts, and asset ownership anyone can check.
-            Personal data never goes on the chain.
+        <motion.div
+          initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{
+            duration: reduceMotion ? 0 : 0.6,
+            delay: reduceMotion ? 0 : 0.4,
+          }}
+          className="flex flex-col items-center gap-7"
+        >
+          <p className="max-w-lg font-sans text-sm leading-relaxed text-ink-muted sm:text-base">
+            Verifiable identities, permissions enforced by smart contracts, and
+            asset ownership anyone can check. Personal data never touches the
+            chain.
           </p>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button size="lg">Launch owneX</Button>
-            <Button size="lg" variant="secondary">
-              Read the docs
-            </Button>
-          </div>
-
-          <p className="mt-6 font-mono text-xs text-ink-faint">
-            3 contracts · 13 endpoints · 93 contract tests · 86 API assertions
-          </p>
-        </div>
-
-        <div className="relative w-full">
-          <MeshBackdrop className="mx-auto max-w-[26rem] lg:max-w-[32rem]" />
-        </div>
+          <a
+            href="#how-it-works"
+            className="rounded-full bg-ink px-8 py-4 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-background transition-transform duration-200 hover:scale-[1.02] motion-reduce:hover:scale-100"
+          >
+            Get started
+          </a>
+        </motion.div>
       </div>
 
-      {/* Protocol footing. */}
-      <dl className="page-container relative grid grid-cols-2 gap-px border-t border-border-soft lg:grid-cols-4">
+      {/* The stone breaks the baseline, behind the type block. */}
+      <HeroObject className="absolute inset-x-0 bottom-0 z-10 h-[44vh] max-h-[26rem]" />
+
+      <dl className="page-container relative z-20 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border/60 pt-5 pb-20 sm:pb-6 lg:grid-cols-4">
         {META.map((item) => (
-          <div key={item.label} className="px-1 py-5">
-            <dt className="label-xs mb-1.5 text-ink-faint">{item.label}</dt>
-            <dd className="font-mono text-sm text-ink">{item.value}</dd>
+          <div key={item.label} className="flex items-baseline gap-3">
+            <dt className="label-xs text-ink-faint">{item.label}</dt>
+            <dd className="font-mono text-xs text-ink">{item.value}</dd>
           </div>
         ))}
       </dl>
