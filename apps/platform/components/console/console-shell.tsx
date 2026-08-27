@@ -10,6 +10,7 @@ import { BrandLockup } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ConnectButton } from "@/components/wallet/connect-button";
 import { useWallet } from "@/components/wallet/wallet-provider";
+import { RpcFailurePanel, technicalDetail } from "@/components/console/states";
 import {
   Badge,
   GlassCard,
@@ -21,13 +22,34 @@ import {
   type Role,
 } from "@/components/ui";
 
-const NAV = [
+/**
+ * Console navigation.
+ *
+ * `soon` marks a route that is not built. It renders as inert text with a badge
+ * rather than a link, because a nav entry that navigates to a blank screen is
+ * worse than one that admits it is not ready. Everything listed here now exists;
+ * the flag stays in the type for the Phase 6 entries.
+ */
+const NAV: Array<{ label: string; href: string; soon?: boolean }> = [
   { label: "Overview", href: "/dashboard" },
   { label: "My identity", href: "/dashboard/identity" },
-  { label: "Members", href: "/dashboard/members", soon: true },
-  { label: "Assets", href: "/dashboard/assets", soon: true },
-  { label: "Audit", href: "/dashboard/audit", soon: true },
+  { label: "Members", href: "/dashboard/members" },
+  { label: "Roles", href: "/dashboard/roles" },
+  { label: "Assets", href: "/dashboard/assets" },
+  { label: "Audit", href: "/dashboard/audit" },
 ];
+
+/**
+ * Which nav entry is the current one.
+ *
+ * Overview is an exact match only. Every other entry also matches its children,
+ * so an asset detail page keeps "Assets" marked as the current section instead of
+ * leaving nothing highlighted.
+ */
+function isActive(pathname: string, href: string): boolean {
+  if (href === "/dashboard") return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 /**
  * Console shell.
@@ -41,10 +63,15 @@ const NAV = [
  *   no org      signed in but not a member of anything
  */
 export function ConsoleShell({ children }: { children: React.ReactNode }) {
-  const { ready, session, wrongChain, chainId, fixChain } = useWallet();
+  const { ready, session, sessionError, wrongChain, chainId, fixChain } = useWallet();
   const pathname = usePathname();
 
   if (!ready) return <ShellSkeleton />;
+  // Being signed out and being unable to ask are different problems. Showing
+  // "sign in to continue" when the server could not reach the chain sends the
+  // user to re-sign a session they already have, which cannot work and tells
+  // them nothing.
+  if (!session && sessionError !== null) return <ShellFailure error={sessionError} />;
   if (!session) return <SignedOut />;
 
   const activeRole = (session.memberships.find(
@@ -90,6 +117,46 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
         </div>
       ) : null}
 
+      {/* Below lg the sidebar is hidden, so without this there would be no way
+          to reach any screen but the one you landed on. A scrolling strip keeps
+          all six reachable without a menu to open. */}
+      <nav
+        aria-label="Console sections"
+        className="border-b border-border bg-surface lg:hidden"
+      >
+        <ul className="page-container flex gap-1 overflow-x-auto py-2">
+          {NAV.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <li key={item.href} className="shrink-0">
+                {item.soon ? (
+                  <span
+                    aria-disabled
+                    className="flex items-center gap-1.5 rounded-md px-3 py-2 text-sm whitespace-nowrap text-ink-faint"
+                  >
+                    {item.label}
+                    <Badge tone="neutral">Soon</Badge>
+                  </span>
+                ) : (
+                  <Link
+                    href={item.href}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "block rounded-md px-3 py-2 text-sm whitespace-nowrap transition-colors duration-200",
+                      active
+                        ? "bg-brand-soft font-semibold text-ink"
+                        : "text-ink-muted hover:bg-brand-soft hover:text-ink",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
       <div className="page-container flex flex-1 gap-8 py-8">
         <aside className="hidden w-52 shrink-0 lg:block">
           <div className="mb-6 flex items-center gap-2.5 rounded-xl border border-border bg-surface p-3">
@@ -105,9 +172,7 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
           <nav aria-label="Console">
             <ul className="flex flex-col gap-0.5">
               {NAV.map((item) => {
-                const active =
-                  pathname === item.href ||
-                  (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                const active = isActive(pathname, item.href);
                 return (
                   <li key={item.href}>
                     {item.soon ? (
@@ -167,17 +232,7 @@ function SignedOut() {
     <div className="flex min-h-dvh flex-col">
       {/* The signed-out state keeps the header: without it there is no way back
           to the site and no indication of which product this is. */}
-      <header className="bar-surface sticky top-0 z-40">
-        <div className="page-container flex h-16 items-center gap-4">
-          <Link href="/" aria-label="owneX home" className="shrink-0 rounded-sm">
-            <BrandLockup />
-          </Link>
-          <span className="label-xs hidden text-ink-faint sm:inline">Console</span>
-          <div className="ms-auto">
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <ShellHeader />
 
       <div className="page-container flex flex-1 items-center justify-center py-24">
         <GlassCard padding="lg" className="max-w-md text-center">
@@ -199,5 +254,45 @@ function SignedOut() {
         </GlassCard>
       </div>
     </div>
+  );
+}
+
+/**
+ * The session could not be read at all.
+ *
+ * Almost always the chain or the database is unreachable, so the panel says so
+ * and names the command that fixes it locally, rather than inviting the user to
+ * sign in again — which would fail at the same step for the same reason.
+ */
+function ShellFailure({ error }: { error: unknown }) {
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <ShellHeader />
+      <div className="page-container flex flex-1 items-center justify-center py-24">
+        <div className="w-full max-w-lg">
+          <RpcFailurePanel
+            onRetry={() => window.location.reload()}
+            detail={technicalDetail(error)}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Shared chrome for the states that render instead of the console. */
+function ShellHeader() {
+  return (
+    <header className="bar-surface sticky top-0 z-40">
+      <div className="page-container flex h-16 items-center gap-4">
+        <Link href="/" aria-label="owneX home" className="shrink-0 rounded-sm">
+          <BrandLockup />
+        </Link>
+        <span className="label-xs hidden text-ink-faint sm:inline">Console</span>
+        <div className="ms-auto">
+          <ThemeToggle />
+        </div>
+      </div>
+    </header>
   );
 }

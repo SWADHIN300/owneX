@@ -82,6 +82,13 @@ interface WalletState {
   /** True once the initial session and wallet checks have finished. */
   ready: boolean;
   session: Me | null;
+  /**
+   * Why the session could not be read, when that is the reason `session` is
+   * null. A 401 is the ordinary signed-out state and leaves this null; anything
+   * else means the server could not answer, which is a different problem with a
+   * different fix and must not be shown as "please sign in".
+   */
+  sessionError: unknown;
   stage: SignInStage;
   error: string | null;
   /** Every wallet the browser announced, plus a legacy fallback if needed. */
@@ -110,6 +117,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = React.useState<string | null>(null);
   const [chainId, setChainId] = React.useState<number | null>(null);
   const [session, setSession] = React.useState<Me | null>(null);
+  const [sessionError, setSessionError] = React.useState<unknown>(null);
   const [ready, setReady] = React.useState(false);
   const [stage, setStage] = React.useState<SignInStage>("idle");
   const [error, setError] = React.useState<string | null>(null);
@@ -142,15 +150,63 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   /* Existing session from a previous visit. */
   React.useEffect(() => {
     let cancelled = false;
-    void getMe()
-      .catch(() => null)
-      .then((me) => {
-        if (!cancelled) setSession(me);
-      });
+    void getMe().then(
+      (me) => {
+        if (cancelled) return;
+        setSession(me);
+        setSessionError(null);
+      },
+      (caught: unknown) => {
+        // Not a 401 — `getMe` returns null for that. The server could not answer,
+        // which usually means it could not reach the chain or the database.
+        if (!cancelled) setSessionError(caught);
+      },
+    );
     return () => {
       cancelled = true;
     };
   }, []);
+
+  /**
+   * Silent reconnection.
+   *
+   * The session lives in a cookie, but `address` and `chainId` are React state
+   * and do not survive a page load. Without this, every navigation left the
+   * console signed in with no idea which chain the wallet was on: the network
+   * chip read "No network" and the wrong-network banner could not fire at all,
+   * which is worse than useless — it is a broken safety check.
+   *
+   * `eth_accounts` is the read that does not prompt. It returns nothing unless
+   * the wallet has already authorised this origin, so this cannot pop a dialog
+   * at somebody who never connected.
+   */
+  React.useEffect(() => {
+    if (wallets.length === 0 || active) return;
+    let cancelled = false;
+
+    void (async () => {
+      for (const wallet of wallets) {
+        const accounts = normaliseAccounts(
+          await wallet.provider.request({ method: "eth_accounts" }).catch(() => null),
+        );
+        if (accounts.length === 0) continue;
+
+        const chain = parseChainId(
+          await wallet.provider.request({ method: "eth_chainId" }).catch(() => null),
+        );
+        if (cancelled) return;
+
+        setActive(wallet);
+        setAddress(accounts[0]);
+        setChainId(chain);
+        return;
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [wallets, active]);
 
   /* Events from the wallet in use. Re-subscribed when the active wallet changes,
      so events from a wallet the user switched away from are ignored. */
@@ -215,6 +271,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         await verifySignature(challenge.message, signature);
 
         setSession(await getMe());
+        setSessionError(null);
         setStage("done");
       } catch (caught) {
         setError(describeSignInError(caught));
@@ -227,6 +284,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const signOut = React.useCallback(async () => {
     await apiSignOut().catch(() => null);
     setSession(null);
+    setSessionError(null);
     setStage("idle");
     setError(null);
   }, []);
@@ -241,7 +299,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [active, readChain]);
 
   const refresh = React.useCallback(async (orgId?: number) => {
-    setSession(await getMe(orgId).catch(() => null));
+    try {
+      setSession(await getMe(orgId));
+      setSessionError(null);
+    } catch (caught) {
+      setSessionError(caught);
+      setSession(null);
+    }
   }, []);
 
   const dismissError = React.useCallback(() => {
@@ -254,6 +318,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     chainId,
     ready,
     session,
+    sessionError,
     stage,
     error,
     wallets,

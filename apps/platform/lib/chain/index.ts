@@ -200,6 +200,121 @@ export async function readCanAccessApp(orgId: number | bigint, wallet: string, a
   return Boolean(await accessManager().canAccessApp(orgId, wallet, appId));
 }
 
+/**
+ * Every wallet in an organization, with the role that applies right now.
+ *
+ * `getMembers` returns the contract's own enumeration, which `removeMember`
+ * keeps consistent by swap-and-pop. It does NOT include the root admin unless
+ * somebody also called `addMember` for them: an organization's creator becomes
+ * root admin through `createOrganization`, which never touches the member list.
+ * `effectiveRole` resolves that wallet to ADMIN regardless, so a roster built
+ * from the list alone would omit the one member who can never be removed. The
+ * root admin is therefore unioned in and flagged.
+ *
+ * Stored role and effective role are both returned because they can disagree:
+ * a lapsed time-bound membership still holds MANAGER in storage while
+ * `effectiveRole` has already dropped to NONE. Showing only one of them would
+ * either hide the expiry or lose what the role was.
+ */
+export type OrgMemberState = {
+  wallet: string;
+  role: RoleName;
+  storedRole: RoleName;
+  joinedAt: number | null;
+  expiresAt: number | null;
+  expired: boolean;
+  isRootAdmin: boolean;
+};
+
+export async function readOrgMembers(orgId: number | bigint): Promise<OrgMemberState[]> {
+  const manager = accessManager();
+
+  const [listed, organization] = await Promise.all([
+    manager.getMembers(orgId) as Promise<string[]>,
+    readOrganization(orgId),
+  ]);
+
+  const wallets = listed.map(String);
+  const rootAdmin = organization?.rootAdmin ?? null;
+
+  if (rootAdmin && !wallets.some((w) => w.toLowerCase() === rootAdmin.toLowerCase())) {
+    wallets.unshift(rootAdmin);
+  }
+
+  return Promise.all(
+    wallets.map(async (wallet) => {
+      const [membership, role] = await Promise.all([
+        readMembership(orgId, wallet),
+        readEffectiveRole(orgId, wallet),
+      ]);
+
+      return {
+        wallet,
+        role,
+        storedRole: membership.role,
+        joinedAt: membership.joinedAt,
+        expiresAt: membership.expiresAt,
+        expired: membership.expired,
+        isRootAdmin: rootAdmin !== null && rootAdmin.toLowerCase() === wallet.toLowerCase(),
+      };
+    }),
+  );
+}
+
+/**
+ * The whole permission matrix for an organization, tri-state.
+ *
+ * Three values per cell, because collapsing them loses information the admin
+ * needs: what the contract's baseline says, what this organization overrode it
+ * to, and what `hasPermission` actually answers today. A cell reading "Allowed"
+ * looks identical to an unset cell whose default is already true, and only one
+ * of those survives a change to the defaults.
+ */
+export type OverrideState = "Unset" | "Allowed" | "Denied";
+
+const OVERRIDE_NAMES: OverrideState[] = ["Unset", "Allowed", "Denied"];
+
+export type MatrixCell = {
+  role: RoleName;
+  permission: PermissionKey;
+  default: boolean;
+  override: OverrideState;
+  effective: boolean;
+};
+
+export async function readPermissionMatrix(orgId: number | bigint): Promise<MatrixCell[]> {
+  const manager = accessManager();
+  const roles: RoleName[] = ["ADMIN", "MANAGER", "AUDITOR", "USER"];
+
+  const cells = await Promise.all(
+    roles.flatMap((role) =>
+      PERMISSION_LIST.map(async (permission): Promise<MatrixCell> => {
+        const hash = roleHash(role);
+        const [defaultAllowed, override] = await Promise.all([
+          manager.defaultPermission(hash, permission.hash) as Promise<boolean>,
+          manager.permissionOverride(orgId, hash, permission.hash) as Promise<bigint>,
+        ]);
+
+        const state = OVERRIDE_NAMES[Number(override)] ?? "Unset";
+
+        return {
+          role,
+          permission: permission.key,
+          default: Boolean(defaultAllowed),
+          override: state,
+          // An override wins; otherwise the default applies. Note this is the
+          // matrix, not a live answer for a wallet: `hasPermission` additionally
+          // returns false for every role while the organization is suspended,
+          // which is reported separately rather than folded into every cell.
+          effective: state === "Allowed" ? true : state === "Denied" ? false : Boolean(defaultAllowed),
+        };
+      }),
+    ),
+  );
+
+  return cells;
+}
+
 /** Organizations a wallet currently belongs to, with its live role in each. */
 export async function readMemberships(wallet: string) {
   const total = Number(await identityRegistry().organizationCount());

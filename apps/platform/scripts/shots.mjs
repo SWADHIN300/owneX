@@ -45,7 +45,12 @@ for (const theme of ["light", "dark"]) {
       const tab = await context.newPage();
       const tag = `${theme}/${page.name}/${vp.name}`;
       tab.on("console", (msg) => {
-        if (msg.type() === "error") problems.push(`${tag} console: ${msg.text()}`);
+        if (msg.type() !== "error") return;
+        // Every page probes /api/identity/me once to find out whether anybody is
+        // signed in, and a 401 is the answer "nobody is". The browser logs it as
+        // an error; it is not one.
+        if (/status of 401/.test(msg.text())) return;
+        problems.push(`${tag} console: ${msg.text()}`);
       });
       tab.on("pageerror", (err) => problems.push(`${tag} pageerror: ${err.message}`));
 

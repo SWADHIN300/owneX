@@ -9,7 +9,11 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "seed:offchain": "node scripts/seed-offchain.mjs",
-    "check:contrast": "node scripts/check-contrast.mjs"
+    "check:contrast": "node scripts/check-contrast.mjs",
+    "check:overflow": "node scripts/diagnose-overflow.mjs",
+    "shots": "node scripts/shots.mjs",
+    "shots:console": "node scripts/console-shots.mjs",
+    "check:states": "node scripts/console-states.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.58.0",

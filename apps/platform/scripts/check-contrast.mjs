@@ -64,7 +64,12 @@ const PAIRS = [
   ["ink-muted", "surface", 4.5, "secondary text on card"],
   ["ink-muted", "surface-2", 4.5, "secondary text on subtle surface"],
   ["ink-faint", "background", 3.0, "micro label on page"],
+  // Phase 5 puts micro labels inside cards on nearly every screen (table
+  // headers, definition-list terms), and the section kicker sits straight on the
+  // page canvas. Neither pair existed before, so neither was being asserted.
+  ["ink-faint", "surface", 3.0, "micro label on card"],
   ["ink-faint", "surface-2", 3.0, "micro label on subtle surface"],
+  ["accent", "background", 4.5, "accent kicker on page"],
   ["brand", "background", 4.5, "brand text on page"],
   ["brand", "surface", 4.5, "brand text on card"],
   ["brand", "brand-soft", 4.5, "brand text on brand tint"],
