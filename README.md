@@ -4,10 +4,11 @@
 
 A blockchain platform for decentralized identity, organization-wide role-based
 access control, and NFT-backed asset ownership, with a tamper-evident audit
-trail. Built for Smart India Hackathon.
+trail. Open source and self-hostable, with no vendor lock-in: it runs on any EVM
+chain.
 
 ```
-93 contract tests passing  ·  86 API assertions passing  ·  4 of 8 phases done
+93 contract tests passing  ·  86 API assertions passing  ·  testnet only, audit pending
 ```
 
 ---
@@ -390,7 +391,10 @@ Stated plainly, because they are design realities rather than bugs.
 - **`/api/roles/verify` is unauthenticated by design.** Production would issue a
   revocable API key per integrated application.
 - **The indexer runs on demand.** Production wants a cron job or a worker.
-- **Not audited.** This is a hackathon proof of concept.
+- **Not audited.** No external security review has been carried out. Do not hold
+  anything of value with this on a mainnet until one has.
+- **No end-user key recovery yet.** The guardian model is designed but not built,
+  so today a lost key means a registrar has to reissue the identity.
 
 ---
 
