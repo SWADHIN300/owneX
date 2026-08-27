@@ -20,7 +20,7 @@ const META = [
  */
 export function Hero() {
   const reduceMotion = useReducedMotion();
-  const lines = ["Own it ", "Prove it ", "Onchain "];
+  const lines = ["Own it ", "Prove it ","Onchain "];
 
   return (
     <section

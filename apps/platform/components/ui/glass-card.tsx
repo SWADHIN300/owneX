@@ -53,7 +53,7 @@ export function GlassCard({
       data-slot="glass-card"
       className={cn(
         "rounded-xl border border-border shadow-card",
-        glass ? "glass" : onGradient ? "" : "bg-surface",
+        glass ? "frosted" : onGradient ? "" : "bg-surface",
         GRADIENT[gradient],
         // Gradients aurora, deep, canopy and dusk are dark in both themes, so
         // their content needs light ink regardless of mode.

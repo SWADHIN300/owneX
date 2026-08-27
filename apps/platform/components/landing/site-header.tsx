@@ -6,10 +6,8 @@ import { NetworkChip } from "@/components/ui";
 
 const NAV = [
   { label: "Platform", href: "#how-it-works" },
-  { label: "Architecture", href: "#split" },
-  { label: "Capabilities", href: "#capabilities" },
   { label: "Security", href: "#evidence" },
-  { label: "Design", href: "/design" },
+  // { label: "Design", href: "/design" },
 ];
 
 /**
@@ -23,7 +21,7 @@ const NAV = [
  */
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-40 glass border-b border-border/70">
+    <header className="sticky top-0 z-40 bar-surface">
       <div className="page-container flex h-16 items-center gap-5">
         <a href="#top" aria-label="owneX home" className="shrink-0 rounded-sm">
           <BrandLockup />

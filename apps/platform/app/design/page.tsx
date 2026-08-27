@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 export default function DesignSystemPage() {
   return (
     <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-40 glass border-b border-border">
+      <header className="sticky top-0 z-40 bar-surface">
         <div className="page-container flex h-16 items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Link href="/" aria-label="owneX home" className="rounded-sm">
