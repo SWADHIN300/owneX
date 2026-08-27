@@ -24,14 +24,23 @@
   --ink-faint: #5d7062;
 
   /* The dark anchor. Used for primary buttons and the hero object. */
-  --brand: #0a3a2c;
-  --brand-hover: #0f4d3a;
+  --brand: #083344;
+  --brand-hover: #0d4a5f;
   --brand-ink: #eafad8;
   --brand-soft: #cdeeb2;
   --brand-line: #a8d98a;
 
+  /* Text-safe accent. #00A98F measures only 2.56:1 on lime, so accent TEXT uses
+     this darker value instead. */
   --accent: #00614f;
   --accent-ink: #ffffff;
+
+  /* The vibrant green, for FILLS only: 5.76:1 with dark ink on it, but 2.56:1 as
+     text on lime. --accent-vivid-line defines its boundary against the canvas,
+     which a 2.56:1 fill cannot do on its own. */
+  --accent-vivid: #00a98f;
+  --accent-vivid-ink: #062a20;
+  --accent-vivid-line: #00614f;
   --flare: #a8430c;
   --flare-ink: #ffffff;
 
@@ -54,6 +63,7 @@
   --grid-line: rgba(22, 36, 29, 0.06);
   --glow: rgba(10, 58, 44, 0.14);
 
+  --gradient-mint: linear-gradient(180deg, #def6c6 0%, #e8f9d8 100%);
   --gradient-dawn: linear-gradient(135deg, #ffffff 0%, #eaf8d9 55%, #d4f0b6 100%);
   --gradient-aurora: linear-gradient(135deg, #0a3a2c 0%, #00614f 55%, #7ec9a0 100%);
   --gradient-deep: linear-gradient(160deg, #0d3f30 0%, #072a20 45%, #041a14 100%);
@@ -91,6 +101,9 @@
 
   --accent: #7fe9d0;
   --accent-ink: #032420;
+  --accent-vivid: #35c9ad;
+  --accent-vivid-ink: #032420;
+  --accent-vivid-line: #7fe9d0;
   --flare: #ff7a2f;
   --flare-ink: #2a0f02;
 
@@ -112,6 +125,7 @@
   --grid-line: rgba(214, 236, 245, 0.045);
   --glow: rgba(53, 201, 173, 0.18);
 
+  --gradient-mint: linear-gradient(180deg, #052e29 0%, #073a34 100%);
   --gradient-dawn: linear-gradient(135deg, #073a34 0%, #0a443d 55%, #0e5049 100%);
   --gradient-aurora: linear-gradient(135deg, #052e29 0%, #1c8f7c 55%, #7fe9d0 100%);
   --gradient-deep: linear-gradient(160deg, #063731 0%, #04211e 45%, #021411 100%);
@@ -147,6 +161,9 @@
 
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-vivid: var(--accent-vivid);
+  --color-accent-vivid-ink: var(--accent-vivid-ink);
+  --color-accent-vivid-line: var(--accent-vivid-line);
   --color-flare: var(--flare);
   --color-flare-ink: var(--flare-ink);
   --color-data: var(--data);
@@ -223,6 +240,9 @@
 /* ==========================================================================
    Utilities
    ========================================================================== */
+@utility gradient-mint {
+  background-image: var(--gradient-mint);
+}
 @utility gradient-dawn {
   background-image: var(--gradient-dawn);
 }

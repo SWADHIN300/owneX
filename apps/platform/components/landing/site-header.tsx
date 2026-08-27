@@ -48,7 +48,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-2.5">
           <a
             href="#how-it-works"
-            className="rounded-full bg-ink px-6 py-3 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-background transition-opacity duration-200 hover:opacity-90"
+            className="rounded-full border border-accent-vivid-line bg-accent-vivid px-6 py-3 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-accent-vivid-ink transition-opacity duration-200 hover:opacity-90"
           >
             Get started
           </a>

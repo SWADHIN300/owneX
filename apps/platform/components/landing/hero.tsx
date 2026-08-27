@@ -26,7 +26,7 @@ export function Hero() {
   return (
     <section
       id="top"
-      className="relative flex min-h-[100svh] flex-col overflow-hidden bg-background"
+      className="gradient-mint relative flex min-h-[100svh] flex-col overflow-hidden"
     >
       <div aria-hidden className="grid-backdrop absolute inset-0 opacity-70" />
 
@@ -75,7 +75,7 @@ export function Hero() {
 
           <a
             href="#how-it-works"
-            className="rounded-full bg-ink px-8 py-4 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-background transition-transform duration-200 hover:scale-[1.02] motion-reduce:hover:scale-100"
+            className="rounded-full bg-brand px-8 py-4 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-brand-ink transition-transform duration-200 hover:scale-[1.02] motion-reduce:hover:scale-100"
           >
             Get started
           </a>
