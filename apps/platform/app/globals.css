@@ -24,11 +24,11 @@
   --ink-faint: #5d7062;
 
   /* The dark anchor. Used for primary buttons and the hero object. */
-  --brand: #083344;
-  --brand-hover: #0d4a5f;
-  --brand-ink: #eafad8;
-  --brand-soft: #cdeeb2;
-  --brand-line: #a8d98a;
+  --brand: #526622;
+  --brand-hover: #637b29;
+  --brand-ink: #ffffff;
+  --brand-soft: #dcecc2;
+  --brand-line: #a9c47c;
 
   /* Text-safe accent. #00A98F measures only 2.56:1 on lime, so accent TEXT uses
      this darker value instead. */
@@ -54,11 +54,11 @@
   --ring: #00614f;
 
   /* Hero stone facets. Dark emerald on the light canvas. */
-  --facet-darkest: #04211a;
-  --facet-dark: #073024;
-  --facet-mid: #0d4534;
-  --facet-midlight: #145c44;
-  --facet-light: #1d7a5b;
+  --facet-darkest: #2b3a12;
+  --facet-dark: #3d5119;
+  --facet-mid: #526622;
+  --facet-midlight: #6b8130;
+  --facet-light: #87a03f;
 
   --grid-line: rgba(22, 36, 29, 0.06);
   --glow: rgba(10, 58, 44, 0.14);
@@ -93,11 +93,11 @@
   --ink-muted: #9dc0c8;
   --ink-faint: #6f9199;
 
-  --brand: #35c9ad;
-  --brand-hover: #52dcc1;
-  --brand-ink: #032420;
-  --brand-soft: #0b3f38;
-  --brand-line: #1c6659;
+  --brand: #9bc53d;
+  --brand-hover: #add44f;
+  --brand-ink: #0a1408;
+  --brand-soft: #1d2b10;
+  --brand-line: #46601f;
 
   --accent: #7fe9d0;
   --accent-ink: #032420;
@@ -116,11 +116,11 @@
   --border-soft: #0d423c;
   --ring: #7fe9d0;
 
-  --facet-darkest: #9c3a0c;
-  --facet-dark: #c74a12;
-  --facet-mid: #ef6a22;
-  --facet-midlight: #ff8845;
-  --facet-light: #ffb98c;
+  --facet-darkest: #4a5f1e;
+  --facet-dark: #67812c;
+  --facet-mid: #86a33a;
+  --facet-midlight: #a3c24a;
+  --facet-light: #c0de64;
 
   --grid-line: rgba(214, 236, 245, 0.045);
   --glow: rgba(53, 201, 173, 0.18);

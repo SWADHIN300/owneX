@@ -10,7 +10,7 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
  * close button has an accessible name, and dismissal is remembered for the
  * session so it does not nag on every navigation.
  */
-const STORAGE_KEY = "ownex.notice.phase4";
+const STORAGE_KEY = "ownex.notice.testnet";
 
 export function AnnouncementBar() {
   const [visible, setVisible] = React.useState(false);
@@ -50,9 +50,9 @@ export function AnnouncementBar() {
           className="fixed bottom-4 left-4 z-50 max-w-[calc(100vw-2rem)] sm:max-w-sm"
         >
           <div className="flex items-center gap-3 rounded-full bg-surface py-2 ps-4 pe-2 shadow-lifted ring-1 ring-border">
-            <span className="label-xs shrink-0 text-accent">Update</span>
+            <span className="label-xs shrink-0 text-accent">Status</span>
             <p className="min-w-0 flex-1 truncate font-sans text-xs text-ink-muted">
-              Phase 4 shipped: design system and landing page.
+              Running on testnet. Audit pending before mainnet.
             </p>
             <button
               type="button"

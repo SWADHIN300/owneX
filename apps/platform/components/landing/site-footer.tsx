@@ -3,16 +3,16 @@ import { Button, GlassCard } from "@/components/ui";
 
 const COLUMNS = [
   {
-    heading: "Product",
-    links: ["Identity", "Access", "Assets", "Audit"],
+    heading: "Platform",
+    links: ["Identity", "Access control", "Asset custody", "Audit trail"],
   },
   {
     heading: "Developers",
-    links: ["Documentation", "Smart contracts", "API reference", "GitHub"],
+    links: ["Documentation", "Smart contracts", "API reference", "Self-hosting"],
   },
   {
-    heading: "Protocol",
-    links: ["Architecture", "Security model", "Standards", "Status"],
+    heading: "Resources",
+    links: ["Architecture", "Security model", "Standards", "Changelog"],
   },
 ];
 
@@ -31,20 +31,19 @@ export function SiteFooter() {
                 Prove it onchain.
               </h2>
               <p className="max-w-md text-sm leading-relaxed text-white/70">
-                Create verifiable identities, enforce permissions through smart
-                contracts, and keep a tamper-evident record of who holds what.
+                Issue verifiable identities, enforce permissions in smart
+                contracts, and keep an ownership record neither you nor anyone
+                else can quietly rewrite.
               </p>
             </div>
             <div className="flex flex-wrap gap-3 lg:justify-end">
-              <Button size="lg" variant="accent">
-                Launch owneX
-              </Button>
+              <Button size="lg">Get started</Button>
               <Button
                 size="lg"
                 variant="secondary"
                 className="border-white/20 bg-white/10 text-white hover:bg-white/15"
               >
-                View source
+                Read the docs
               </Button>
             </div>
           </div>
@@ -54,8 +53,11 @@ export function SiteFooter() {
           <div>
             <BrandLockup className="mb-4" />
             <p className="max-w-xs text-sm leading-relaxed text-ink-muted">
-              Verifiable identity, role-based access control, and NFT-backed
-              asset ownership with a tamper-evident audit trail.
+              Decentralised identity, smart-contract access control, and
+              NFT-backed asset custody with a tamper-evident audit trail.
+            </p>
+            <p className="mt-4 font-mono text-[0.625rem] text-ink-faint">
+              Open source. Self-hostable. No vendor lock-in.
             </p>
           </div>
 
@@ -80,10 +82,10 @@ export function SiteFooter() {
 
         <div className="flex flex-col items-start justify-between gap-3 pt-8 sm:flex-row sm:items-center">
           <p className="text-xs text-ink-faint">
-            {year} owneX. Built for Smart India Hackathon.
+            {year} owneX. Released under an open source licence.
           </p>
           <p className="font-mono text-xs text-ink-faint">
-            Protocol concept. Not audited, not on a production network.
+            Testnet only. Pending external security audit.
           </p>
         </div>
       </div>
