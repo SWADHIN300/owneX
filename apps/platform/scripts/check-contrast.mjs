@@ -72,6 +72,9 @@ const PAIRS = [
   ["accent", "surface", 4.5, "accent text on card"],
   ["accent", "brand-soft", 4.5, "accent text on brand tint"],
   ["accent-ink", "accent", 4.5, "label on accent fill"],
+  ["accent-vivid-ink", "accent-vivid", 4.5, "label on the vivid accent fill"],
+  ["accent-vivid-line", "accent-vivid", 1.3, "boundary on the vivid accent fill"],
+  ["brand-ink", "brand", 4.5, "label on the dark emerald anchor"],
   ["data", "surface", 4.5, "data text on card"],
   ["success", "surface", 4.5, "success text on card"],
   ["warn", "surface", 4.5, "warning text on card"],
@@ -83,7 +86,7 @@ const PAIRS = [
   ["border", "surface", 1.3, "border against card"],
 ];
 
-const themes = { green: block(":root"), light: block("\\.light") };
+const themes = { lime: block(":root"), dark: block("\\.dark") };
 const failures = [];
 const rows = [];
 

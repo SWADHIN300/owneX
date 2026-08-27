@@ -1,18 +1,94 @@
 @import "tailwindcss";
 
 /* Dark is class-driven so next-themes owns the switch and the pre-paint script
- * avoids a flash. `.light` is the alternate; the deep green below is the base. */
-@custom-variant light (&:is(.light *));
+ * avoids a flash. `:root` is the lime canvas; `.dark` is the deep green. */
+@custom-variant dark (&:is(.dark *));
 
 /* ==========================================================================
-   Primary theme: deep green canvas, pale ice ink.
+   Primary theme: pale lime canvas, deep green ink.
 
-   Not near-black. The canvas is a saturated dark green in the same family as
-   the brand (#003C38), which is what gives the page its temperature. Ink is a
-   pale ice blue rather than white, because pure white on saturated green
-   vibrates.
+   The canvas is a yellow-green (#DEF6C6), so every green that sits on it is
+   pulled to the same warm side. A blue-green accent on this canvas reads as a
+   different palette, which is why the accent here is a deep moss-teal rather
+   than the brighter #00A98F: that value only reaches 2.56:1 on lime and cannot
+   carry text or even a status dot.
    ========================================================================== */
 :root {
+  --background: #def6c6;
+  --surface: #ffffff;
+  --surface-2: #eaf8d9;
+  --surface-3: #d4f0b6;
+
+  --ink: #16241d;
+  --ink-muted: #45564a;
+  --ink-faint: #5d7062;
+
+  /* The dark anchor. Used for primary buttons and the hero object. */
+  --brand: #526622;
+  --brand-hover: #637b29;
+  --brand-ink: #ffffff;
+  --brand-soft: #dcecc2;
+  --brand-line: #a9c47c;
+
+  /* Text-safe accent. #00A98F measures only 2.56:1 on lime, so accent TEXT uses
+     this darker value instead. */
+  --accent: #00614f;
+  --accent-ink: #ffffff;
+
+  /* The vibrant green, for FILLS only: 5.76:1 with dark ink on it, but 2.56:1 as
+     text on lime. --accent-vivid-line defines its boundary against the canvas,
+     which a 2.56:1 fill cannot do on its own. */
+  --accent-vivid: #00a98f;
+  --accent-vivid-ink: #062a20;
+  --accent-vivid-line: #00614f;
+  --flare: #a8430c;
+  --flare-ink: #ffffff;
+
+  --data: #1f3fa8;
+  --success: #16653f;
+  --warn: #7a4a10;
+  --danger: #97231f;
+
+  /* Topbar sits on its own surface, deeper than the canvas, so it reads as a
+     layer rather than part of the page. */
+  --bar: #d0eeae;
+  --bar-border: #a9cd7f;
+
+  --border: #b9dd98;
+  --border-soft: #cbe9ae;
+  --ring: #00614f;
+
+  /* Hero stone facets. Dark emerald on the light canvas. */
+  --facet-darkest: #2b3a12;
+  --facet-dark: #3d5119;
+  --facet-mid: #526622;
+  --facet-midlight: #6b8130;
+  --facet-light: #87a03f;
+
+  --grid-line: rgba(22, 36, 29, 0.06);
+  --glow: rgba(10, 58, 44, 0.14);
+
+  --gradient-mint: linear-gradient(180deg, #def6c6 0%, #e8f9d8 100%);
+  --gradient-dawn: linear-gradient(135deg, #ffffff 0%, #eaf8d9 55%, #d4f0b6 100%);
+  --gradient-aurora: linear-gradient(135deg, #0a3a2c 0%, #00614f 55%, #7ec9a0 100%);
+  --gradient-deep: linear-gradient(160deg, #0d3f30 0%, #072a20 45%, #041a14 100%);
+  --gradient-canopy: linear-gradient(135deg, #0a3a2c 0%, #2f6b1f 100%);
+  --gradient-sand: linear-gradient(135deg, #f7f4e6 0%, #e8e1c9 100%);
+  --gradient-dusk: linear-gradient(135deg, #0d3229 0%, #1b2b3f 100%);
+  --gradient-flare: linear-gradient(135deg, #c9520f 0%, #8f3608 100%);
+
+  --shadow-sm: 0 1px 2px rgba(22, 36, 29, 0.06);
+  --shadow-md: 0 2px 4px rgba(22, 36, 29, 0.05), 0 10px 24px -12px rgba(10, 58, 44, 0.2);
+  --shadow-lg: 0 4px 8px rgba(22, 36, 29, 0.06), 0 28px 56px -24px rgba(10, 58, 44, 0.28);
+  --shadow-glow: 0 0 0 1px var(--brand-line), 0 10px 36px -14px var(--glow);
+
+  --radius: 0.75rem;
+}
+
+/* ==========================================================================
+   Dark theme: the deep green canvas, kept from the previous direction.
+   ========================================================================== */
+.dark {
   --background: #052e29;
   --surface: #073a34;
   --surface-2: #0a443d;
@@ -22,16 +98,17 @@
   --ink-muted: #9dc0c8;
   --ink-faint: #6f9199;
 
-  --brand: #35c9ad;
-  --brand-hover: #52dcc1;
-  --brand-ink: #032420;
-  --brand-soft: #0b3f38;
-  --brand-line: #1c6659;
+  --brand: #9bc53d;
+  --brand-hover: #add44f;
+  --brand-ink: #0a1408;
+  --brand-soft: #1d2b10;
+  --brand-line: #46601f;
 
   --accent: #7fe9d0;
   --accent-ink: #032420;
-  /* The warm counterpoint. One warm colour against all that green is what stops
-     the page reading as monochrome. */
+  --accent-vivid: #35c9ad;
+  --accent-vivid-ink: #032420;
+  --accent-vivid-line: #7fe9d0;
   --flare: #ff7a2f;
   --flare-ink: #2a0f02;
 
@@ -40,13 +117,23 @@
   --warn: #e8b366;
   --danger: #ff8f8f;
 
+  --bar: #0a423b;
+  --bar-border: #1b5f56;
+
   --border: #14514a;
   --border-soft: #0d423c;
   --ring: #7fe9d0;
 
+  --facet-darkest: #4a5f1e;
+  --facet-dark: #67812c;
+  --facet-mid: #86a33a;
+  --facet-midlight: #a3c24a;
+  --facet-light: #c0de64;
+
   --grid-line: rgba(214, 236, 245, 0.045);
   --glow: rgba(53, 201, 173, 0.18);
 
+  --gradient-mint: linear-gradient(180deg, #052e29 0%, #073a34 100%);
   --gradient-dawn: linear-gradient(135deg, #073a34 0%, #0a443d 55%, #0e5049 100%);
   --gradient-aurora: linear-gradient(135deg, #052e29 0%, #1c8f7c 55%, #7fe9d0 100%);
   --gradient-deep: linear-gradient(160deg, #063731 0%, #04211e 45%, #021411 100%);
@@ -59,59 +146,6 @@
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
   --shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.45), 0 32px 64px -28px rgba(0, 0, 0, 0.85);
   --shadow-glow: 0 0 0 1px var(--brand-line), 0 12px 44px -16px var(--glow);
-
-  --radius: 0.75rem;
-}
-
-/* ==========================================================================
-   Alternate theme: green-tinted off-white. Not pure white, so the two themes
-   feel like one family rather than two products.
-   ========================================================================== */
-.light {
-  --background: #f1f6f4;
-  --surface: #ffffff;
-  --surface-2: #e9f1ee;
-  --surface-3: #dfeae6;
-
-  --ink: #062521;
-  --ink-muted: #47605b;
-  --ink-faint: #6d857f;
-
-  --brand: #00534c;
-  --brand-hover: #006c62;
-  --brand-ink: #ffffff;
-  --brand-soft: #e2eeeb;
-  --brand-line: #b9d3cd;
-
-  --accent: #00695c;
-  --accent-ink: #ffffff;
-  --flare: #b8480f;
-  --flare-ink: #ffffff;
-
-  --data: #24439f;
-  --success: #14663f;
-  --warn: #7a4a10;
-  --danger: #9d2f2f;
-
-  --border: #cddcd7;
-  --border-soft: #dfeae6;
-  --ring: #00695c;
-
-  --grid-line: rgba(6, 37, 33, 0.055);
-  --glow: rgba(0, 105, 92, 0.14);
-
-  --gradient-dawn: linear-gradient(135deg, #ffffff 0%, #e9f1ee 55%, #d8e8e3 100%);
-  --gradient-aurora: linear-gradient(135deg, #00302c 0%, #00695c 55%, #35c9ad 100%);
-  --gradient-deep: linear-gradient(160deg, #063731 0%, #04211e 45%, #021411 100%);
-  --gradient-canopy: linear-gradient(135deg, #00534c 0%, #17714a 100%);
-  --gradient-sand: linear-gradient(135deg, #f7f4ee 0%, #ebe4d8 100%);
-  --gradient-dusk: linear-gradient(135deg, #0f302e 0%, #1f2d44 100%);
-  --gradient-flare: linear-gradient(135deg, #d95a17 0%, #a13c0c 100%);
-
-  --shadow-sm: 0 1px 2px rgba(6, 37, 33, 0.05);
-  --shadow-md: 0 2px 4px rgba(6, 37, 33, 0.04), 0 10px 24px -12px rgba(0, 83, 76, 0.18);
-  --shadow-lg: 0 4px 8px rgba(6, 37, 33, 0.05), 0 28px 56px -24px rgba(0, 83, 76, 0.26);
-  --shadow-glow: 0 0 0 1px var(--brand-line), 0 10px 36px -14px var(--glow);
 }
 
 /* ==========================================================================
@@ -135,6 +169,9 @@
 
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-accent-vivid: var(--accent-vivid);
+  --color-accent-vivid-ink: var(--accent-vivid-ink);
+  --color-accent-vivid-line: var(--accent-vivid-line);
   --color-flare: var(--flare);
   --color-flare-ink: var(--flare-ink);
   --color-data: var(--data);
@@ -142,6 +179,8 @@
   --color-warn: var(--warn);
   --color-danger: var(--danger);
 
+  --color-bar: var(--bar);
+  --color-bar-border: var(--bar-border);
   --color-border: var(--border);
   --color-border-soft: var(--border-soft);
   --color-ring: var(--ring);
@@ -190,8 +229,8 @@
   }
 
   ::selection {
-    background-color: var(--accent);
-    color: var(--accent-ink);
+    background-color: var(--brand);
+    color: var(--brand-ink);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -211,6 +250,9 @@
 /* ==========================================================================
    Utilities
    ========================================================================== */
+@utility gradient-mint {
+  background-image: var(--gradient-mint);
+}
 @utility gradient-dawn {
   background-image: var(--gradient-dawn);
 }
@@ -240,13 +282,44 @@
   background-size: 56px 56px;
 }
 
-@utility glass {
+/**
+ * Surface for the sticky topbar.
+ *
+ * Fully opaque on purpose. Any translucency lets content slide under the bar and
+ * makes fixed navigation look like a rendering fault, so there is no blur here
+ * either: at full opacity a backdrop filter costs compositing work and changes
+ * nothing on screen. Separation comes from the border, not from transparency.
+ */
+/**
+ * The owneX mark, drawn as a mask rather than an image.
+ *
+ * The supplied artwork is a single flat colour, so using its alpha as a mask and
+ * filling from `currentColor` means one asset serves both themes and always
+ * matches the surrounding text colour. An <img> would be locked to the dark green
+ * it was exported in, which disappears against the dark canvas.
+ */
+@utility logo-mark {
+  background-color: currentColor;
+  -webkit-mask: url("/ownex-mark.png") center / contain no-repeat;
+  mask: url("/ownex-mark.png") center / contain no-repeat;
+}
+
+@utility bar-surface {
+  background-color: var(--bar);
+  border-bottom: 1px solid var(--bar-border);
+  box-shadow: 0 1px 0 var(--bar-border), var(--shadow-sm);
+}
+
+/**
+ * Frosted surface for cards and overlay panels, where letting a little of the
+ * page through is the point. Deliberately not used by the topbar.
+ */
+@utility frosted {
   background-color: color-mix(in srgb, var(--surface) 72%, transparent);
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
 
-/** Uppercase micro label. Monospace, because these sit next to protocol data. */
 @utility label-xs {
   font-family: var(--font-martian-mono), ui-monospace, monospace;
   font-size: 0.625rem;
@@ -255,10 +328,6 @@
   text-transform: uppercase;
 }
 
-/**
- * Oversized display type. Martian Mono is wide, so tracking is pulled in hard
- * and the line box is tightened to let lines stack the way the reference does.
- */
 @utility display {
   font-family: var(--font-martian-mono), ui-monospace, monospace;
   font-weight: 800;
@@ -268,7 +337,6 @@
   text-wrap: balance;
 }
 
-/** Smaller headings: same face, less extreme. */
 @utility display-sm {
   font-family: var(--font-martian-mono), ui-monospace, monospace;
   font-weight: 700;

@@ -2,7 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 
-import { HeroObject } from "./hero-object";
+import { WolfHead } from "./wolf-head";
 
 const META = [
   { label: "Identity", value: "W3C DID" },
@@ -12,25 +12,24 @@ const META = [
 ];
 
 /**
- * Full-viewport hero.
+ * Hero.
  *
- * Reading order is label, headline, one supporting sentence, then the action. The
- * stone sits below all of it and breaks the bottom edge, so nothing overlaps the
- * type. The metadata rail carries extra bottom padding on small screens, where the
- * announcement strip would otherwise sit on top of it.
+ * Reading order is label, headline, one supporting sentence, the action, then the
+ * wolf head directly beneath it. The head is in normal flow rather than absolutely
+ * positioned, so it always sits under the button and can never ride over the type.
  */
 export function Hero() {
   const reduceMotion = useReducedMotion();
-  const lines = ["Own it.", "Prove it.", "Onchain."];
+  const lines = ["Own it ", "Prove it ","Onchain "];
 
   return (
     <section
       id="top"
-      className="relative flex min-h-[100svh] flex-col overflow-hidden bg-background"
+      className="gradient-mint relative flex flex-col overflow-hidden"
     >
       <div aria-hidden className="grid-backdrop absolute inset-0 opacity-70" />
 
-      <div className="page-container relative z-20 flex flex-1 flex-col items-center justify-center pt-28 pb-[26rem] text-center sm:pb-[24rem] lg:pb-[22rem]">
+      <div className="page-container relative z-10 flex flex-col items-center pt-16 text-center sm:pt-20">
         <motion.p
           initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
@@ -75,17 +74,17 @@ export function Hero() {
 
           <a
             href="#how-it-works"
-            className="rounded-full bg-ink px-8 py-4 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-background transition-transform duration-200 hover:scale-[1.02] motion-reduce:hover:scale-100"
+            className="rounded-full bg-brand px-8 py-4 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-brand-ink transition-colors duration-200 hover:bg-brand-hover"
           >
             Get started
           </a>
         </motion.div>
+
+        {/* Directly below the action, in flow. */}
+        <WolfHead className="mt-10 h-[38vh] max-h-[22rem] w-full max-w-2xl sm:mt-12" />
       </div>
 
-      {/* The stone breaks the baseline, behind the type block. */}
-      <HeroObject className="absolute inset-x-0 bottom-0 z-10 h-[44vh] max-h-[26rem]" />
-
-      <dl className="page-container relative z-20 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border/60 pt-5 pb-20 sm:pb-6 lg:grid-cols-4">
+      <dl className="page-container relative z-10 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border/60 pt-5 pb-20 sm:pb-6 lg:grid-cols-4">
         {META.map((item) => (
           <div key={item.label} className="flex items-baseline gap-3">
             <dt className="label-xs text-ink-faint">{item.label}</dt>

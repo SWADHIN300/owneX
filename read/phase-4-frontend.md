@@ -38,22 +38,30 @@ Two display utilities exist so the extreme treatment stays rare:
 is no config file: `@theme inline` turns every token into a utility, which is why
 components use `bg-surface` and `text-ink-muted` instead of hard-coded hex.
 
-**The primary theme is a deep green canvas**, `#052E29`, in the same family as the
-brand `#003C38`. It lives on `:root`, so it is the default and does not follow the
-system preference: the green is the brand, not a mode. `.light` is a green-tinted
-off-white alternate at `#F1F6F4`, chosen over pure white so the two themes read as
-one family rather than two products.
+**The primary theme is a pale lime canvas**, `#DEF6C6`, with deep green ink. It
+lives on `:root`, so it loads by default and does not follow the system
+preference: the lime is the brand, not a mode. `.dark` is the deep green canvas at
+`#052E29`, kept as the opt-in alternate.
 
-Ink is a pale ice blue, `#D6ECF5`, rather than white. Pure white on saturated
-green vibrates.
+The canvas is a **yellow**-green, so every green on it is pulled to the same warm
+side. This is why the accent is a deep moss-teal `#00614F` rather than a brighter
+`#00A98F`: measured against lime, `#00A98F` reaches only 2.56:1, which fails body
+text and fails even the 3:1 floor for a status dot. White on `#00A98F` measures
+2.97:1, so that pairing cannot carry a button label either.
 
-**One warm colour.** `--flare` (`#FF7A2F`) is the only warm token, reserved for the
-hero object and the occasional highlight. It is what stops the page reading as
-monochrome, and it is deliberately scarce.
+For the same reason there is no ice blue in the palette. `#7DD3FC` on lime
+measures 1.44:1, which is not a near miss, it is invisible. Cyan and pale lime sit
+at almost the same lightness.
+
+**One warm colour per theme.** On lime the hero stone is dark emerald, because a
+dark object on a light canvas is the stronger read. On the deep green canvas it is
+warm orange. Both come from `--facet-*` tokens, so the stone recolours itself and
+the component never knows which theme is active.
 
 **Semantic names, not colour names.** `--ink`, `--ink-muted`, `--surface-2`,
 `--brand-soft`. A component asks for the role it needs, so a palette change never
-means touching component code.
+means touching component code. This palette was swapped in three times during
+Phase 4 without editing a single component.
 
 **Seven gradients.** `dawn`, `aurora`, `deep`, `canopy`, `sand`, `dusk` and
 `flare`, each exposed as a utility. The first six are derived from the teal family
@@ -125,6 +133,7 @@ on the server.
 | `Evidence` | 93 / 86 / 13 / 3, the proven security assertions, honest phase status. |
 | `SiteFooter` | Closing call to action on the `deep` gradient, link columns, disclaimer. |
 | `AnnouncementBar` | Bottom-left update strip. Labelled region, dismissal remembered for the session. |
+| `Splash` | Wordmark centred on the canvas for 900ms on first load. Once per session, `aria-hidden`, skipped entirely under reduced motion, never rendered on the server so it cannot trap a visitor without JavaScript. |
 
 ### The hero object
 

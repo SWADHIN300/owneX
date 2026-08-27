@@ -20,7 +20,7 @@ const VARIANT: Record<ButtonVariant, string> = {
   danger:
     "bg-danger text-white hover:brightness-110 disabled:hover:brightness-100",
   accent:
-    "bg-accent text-accent-ink hover:brightness-110 disabled:hover:brightness-100",
+    "bg-brand text-brand-ink hover:bg-brand-hover disabled:hover:bg-brand",
 };
 
 const SIZE: Record<ButtonSize, string> = {
