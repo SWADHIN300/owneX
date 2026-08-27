@@ -1,26 +1,251 @@
 @import "tailwindcss";
 
+/* Dark mode is class-driven so next-themes can own the switch and the
+ * pre-paint script can avoid a flash. `.dark` on <html> flips every token. */
+@custom-variant dark (&:is(.dark *));
+
+/* ==========================================================================
+   Light theme. White canvas, deep teal brand (#003C38).
+   ========================================================================== */
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --surface: #ffffff;
+  --surface-2: #f5f8f7;
+  --surface-3: #eef3f2;
+
+  --ink: #0e1614;
+  --ink-muted: #566663;
+  --ink-faint: #7d8d8a;
+
+  --brand: #003c38;
+  --brand-hover: #00524d;
+  --brand-ink: #ffffff;
+  --brand-soft: #eef4f3;
+  --brand-line: #c2d5d2;
+
+  --accent: #00735f;
+  --accent-ink: #ffffff;
+  --data: #2549c9;
+  --success: #1a7a4f;
+  --warn: #8a5a12;
+  --danger: #b03636;
+
+  --border: #d6e0dd;
+  --border-soft: #e9efee;
+  --ring: #00735f;
+
+  --grid-line: rgba(0, 60, 56, 0.06);
+  --glow: rgba(0, 128, 108, 0.18);
+
+  /* Six named gradients, all derived from the teal family so the set reads as
+     one system instead of six unrelated washes. */
+  --gradient-dawn: linear-gradient(135deg, #ffffff 0%, #eef4f3 55%, #dcebe8 100%);
+  --gradient-aurora: linear-gradient(135deg, #003c38 0%, #00806c 55%, #35c9ad 100%);
+  --gradient-deep: linear-gradient(160deg, #00302d 0%, #003c38 45%, #062421 100%);
+  --gradient-canopy: linear-gradient(135deg, #00524d 0%, #1a7a4f 100%);
+  --gradient-sand: linear-gradient(135deg, #f7f5f0 0%, #ece7dc 100%);
+  --gradient-dusk: linear-gradient(135deg, #10302f 0%, #24384d 100%);
+
+  --shadow-sm: 0 1px 2px rgba(14, 22, 20, 0.05);
+  --shadow-md: 0 2px 4px rgba(14, 22, 20, 0.04), 0 8px 20px -10px rgba(0, 60, 56, 0.18);
+  --shadow-lg: 0 4px 8px rgba(14, 22, 20, 0.05), 0 24px 48px -20px rgba(0, 60, 56, 0.26);
+  --shadow-glow: 0 0 0 1px var(--brand-line), 0 8px 32px -12px var(--glow);
+
+  --radius: 0.75rem;
 }
 
+/* ==========================================================================
+   Dark theme. Near-black canvas, the brand lifts so it stays legible.
+   ========================================================================== */
+.dark {
+  --background: #060908;
+  --surface: #0d1413;
+  --surface-2: #131c1a;
+  --surface-3: #1a2523;
+
+  --ink: #e9f1ef;
+  --ink-muted: #9cadaa;
+  --ink-faint: #74857f;
+
+  --brand: #14a091;
+  --brand-hover: #1cb9a8;
+  --brand-ink: #04110f;
+  --brand-soft: #10201e;
+  --brand-line: #1f4a45;
+
+  --accent: #5cf2d6;
+  --accent-ink: #04110f;
+  --data: #8aa2ff;
+  --success: #52d38f;
+  --warn: #e0a458;
+  --danger: #ef7d7d;
+
+  --border: #22302e;
+  --border-soft: #182422;
+  --ring: #5cf2d6;
+
+  --grid-line: rgba(233, 241, 239, 0.05);
+  --glow: rgba(92, 242, 214, 0.16);
+
+  --gradient-dawn: linear-gradient(135deg, #0d1413 0%, #10201e 55%, #13292611 100%);
+  --gradient-aurora: linear-gradient(135deg, #04211f 0%, #0e8c80 55%, #5cf2d6 100%);
+  --gradient-deep: linear-gradient(160deg, #0a1917 0%, #04110f 45%, #020807 100%);
+  --gradient-canopy: linear-gradient(135deg, #0e8c80 0%, #2f9e6a 100%);
+  --gradient-sand: linear-gradient(135deg, #1b1d1a 0%, #262722 100%);
+  --gradient-dusk: linear-gradient(135deg, #0c1f1e 0%, #17233a 100%);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.5), 0 10px 24px -12px rgba(0, 0, 0, 0.8);
+  --shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.55), 0 28px 60px -24px rgba(0, 0, 0, 0.9);
+  --shadow-glow: 0 0 0 1px var(--brand-line), 0 10px 40px -14px var(--glow);
+}
+
+/* ==========================================================================
+   Tailwind token bridge. Every value above becomes a utility.
+   ========================================================================== */
 @theme inline {
   --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-line: var(--brand-line);
+
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-data: var(--data);
+  --color-success: var(--success);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+
+  --color-border: var(--border);
+  --color-border-soft: var(--border-soft);
+  --color-ring: var(--ring);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
+
+  --shadow-card: var(--shadow-md);
+  --shadow-lifted: var(--shadow-lg);
+  --shadow-ring: var(--shadow-glow);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* ==========================================================================
+   Base
+   ========================================================================== */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    /* Section anchors clear the sticky header. */
+    scroll-padding-top: 5rem;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--ink);
+    font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background-color: var(--brand);
+    color: var(--brand-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ==========================================================================
+   Utilities
+   ========================================================================== */
+@utility gradient-dawn {
+  background-image: var(--gradient-dawn);
+}
+@utility gradient-aurora {
+  background-image: var(--gradient-aurora);
+}
+@utility gradient-deep {
+  background-image: var(--gradient-deep);
+}
+@utility gradient-canopy {
+  background-image: var(--gradient-canopy);
+}
+@utility gradient-sand {
+  background-image: var(--gradient-sand);
+}
+@utility gradient-dusk {
+  background-image: var(--gradient-dusk);
+}
+
+/** Engineering grid, used behind the hero and data sections. */
+@utility grid-backdrop {
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: 56px 56px;
+}
+
+/** Frosted panel. Falls back to a solid surface where backdrop-filter is out. */
+@utility glass {
+  background-color: color-mix(in srgb, var(--surface) 72%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+}
+
+/** Uppercase micro label used for field names and section eyebrows. */
+@utility label-xs {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/** Oversized editorial heading treatment. */
+@utility display {
+  letter-spacing: -0.04em;
+  line-height: 0.96;
+  text-wrap: balance;
+}
+
+@utility page-container {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 82rem;
+  padding-inline: 1rem;
 }

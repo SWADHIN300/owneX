@@ -7,7 +7,7 @@ access control, and NFT-backed asset ownership, with a tamper-evident audit
 trail. Built for Smart India Hackathon.
 
 ```
-93 contract tests passing  ·  86 API assertions passing  ·  3 of 8 phases done
+93 contract tests passing  ·  86 API assertions passing  ·  4 of 8 phases done
 ```
 
 ---
@@ -45,8 +45,8 @@ was edited. Tamper-evidence without publishing anything private.
 | 1 | Smart contracts | ✅ done | [`read/phase-1-contracts.md`](read/phase-1-contracts.md) |
 | 2 | Tests, local deploy, demo seed | ✅ done | [`read/phase-2-tests-and-deploy.md`](read/phase-2-tests-and-deploy.md) |
 | 3 | Backend: Supabase, SIWE auth, role API | ✅ done | [`read/phase-3-backend.md`](read/phase-3-backend.md) |
-| 4 | Design system + landing page | ⬜ next | — |
-| 5 | Platform dashboard | ⬜ | — |
+| 4 | Design system + landing page | ✅ done | [`read/phase-4-frontend.md`](read/phase-4-frontend.md) |
+| 5 | Platform dashboard | ⬜ next | — |
 | 6 | Employee Portal (proves cross-app SSO) | ⬜ | — |
 | 7 | Sepolia deploy + polish | ⬜ | — |
 | 8 | Docs, demo video, submission | ⬜ | — |

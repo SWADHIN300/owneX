@@ -3,8 +3,8 @@
 Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
-**Last updated:** 2026-08-26 · after Phase 3 (Supabase live)
-**Overall:** 3 of 8 phases done · 93 contract tests + 86 API assertions passing · no blockers
+**Last updated:** 2026-08-27 · after Phase 4 (design system + landing)
+**Overall:** 4 of 8 phases done · 93 contract tests + 86 API assertions + 44 contrast checks passing · no blockers
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -19,8 +19,8 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 | 1 | Smart contracts | ✅ done | `phase-1-contracts.md` |
 | 2 | Tests + local deploy + demo seed | ✅ done | `phase-2-tests-and-deploy.md` |
 | 3 | Backend: Supabase + SIWE auth + role API | ✅ done | `phase-3-backend.md` |
-| 4 | Design system + landing page | ⬜ next | — |
-| 5 | Platform dashboard (all pages) | ⬜ | — |
+| 4 | Design system + landing page | ✅ done | `phase-4-frontend.md` |
+| 5 | Platform dashboard (all pages) | ⬜ next | — |
 | 6 | Employee Portal (second app) | ⬜ | — |
 | 7 | Sepolia deploy + polish | ⬜ | — |
 | 8 | Docs + demo video + submission | ⬜ | — |
@@ -179,18 +179,29 @@ Built and fully verified. Detail in `phase-3-backend.md`.
 ✅ Revocation cascade verified through HTTP
 ✅ Least privilege verified: USER gets 403 on mint and audit, serial masked
 ```
-## Phase 4 — Design system + landing ⬜
+## Phase 4 — Design system + landing ✅ DONE
+
+Built and verified. Detail in `phase-4-frontend.md`.
 
 ```
-⬜ Six gradient CSS variables (Dawn, Aurora, Deep, Canopy, Sand, Dusk)
-⬜ Tailwind config: colors, gradients, radii, shadows, sans + mono fonts
-⬜ Components: Button · Input · Select · GlassCard · Badge · RoleChip
-              VerificationBadge · Modal · Toast · Skeleton · NetworkChip
-              WalletPill · Identicon (deterministic from address)
-⬜ Light + dark tokens, 4.5:1 contrast verified
-⬜ Landing page with the node-and-edge mesh hero
-⬜ On-chain vs off-chain explainer diagram
+✅ Token layer in app/globals.css: light primary, dark opt-in, semantic names
+✅ Brand #003C38 on white; lifts to #14A091 in dark so it stays legible
+✅ Six named gradients (Dawn, Aurora, Deep, Canopy, Sand, Dusk) as utilities
+✅ Radii, three shadow depths, brand glow, Geist Sans + Geist Mono wired
+✅ 13 components: Button · Input · Select · GlassCard · Badge · RoleChip
+                 VerificationBadge · Modal · Toast · Skeleton · NetworkChip
+                 WalletPill · Identicon (deterministic, FNV-1a + xorshift32)
+✅ 44 WCAG contrast checks passing in both themes (npm run check:contrast)
+✅ Landing page with the node-and-edge mesh hero
+✅ On-chain vs off-chain explainer with a live integrity check
+✅ /design renders every component and state, both themes
+✅ Reduced motion respected in every animated component and globally in CSS
+✅ Modal: focus trap, focus restore, Escape, scroll lock, aria-modal
+✅ lint, typecheck and production build clean; no console errors at 1440/834/390
 ```
+
+Not wired yet: "Connect wallet" is presentational, and the network chip is
+hard-coded to 31337 until a provider is connected. Both land in Phase 5.
 
 ## Phase 5 — Platform dashboard ⬜
 
