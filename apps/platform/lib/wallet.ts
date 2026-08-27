@@ -20,6 +20,82 @@ declare global {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Wallet discovery (EIP-6963)                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * `window.ethereum` only ever holds one provider, so when a user has several
+ * wallets installed they fight over it and whichever injected last wins. EIP-6963
+ * fixes that: the page announces a request and every wallet replies with its own
+ * identity and provider, which is how a picker can list all of them.
+ */
+export interface WalletInfo {
+  uuid: string;
+  name: string;
+  /** Data URI supplied by the wallet. */
+  icon: string;
+  /** Reverse DNS id, for example io.metamask. Stable across versions. */
+  rdns: string;
+}
+
+export interface DiscoveredWallet {
+  info: WalletInfo;
+  provider: Eip1193Provider;
+}
+
+interface AnnounceEvent extends CustomEvent {
+  detail: DiscoveredWallet;
+}
+
+/**
+ * Subscribe to wallet announcements. Returns an unsubscribe function.
+ *
+ * Wallets announce in response to our request, but some announce eagerly on page
+ * load too, so the listener is attached before requesting. Duplicates are keyed by
+ * rdns rather than uuid, because a wallet that announces twice generates a fresh
+ * uuid each time and would otherwise appear twice in the list.
+ */
+export function subscribeToWallets(
+  onChange: (wallets: DiscoveredWallet[]) => void,
+): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  const byRdns = new Map<string, DiscoveredWallet>();
+
+  const onAnnounce = (event: Event) => {
+    const detail = (event as AnnounceEvent).detail;
+    if (!detail?.info?.rdns || !detail.provider) return;
+    byRdns.set(detail.info.rdns, detail);
+    onChange([...byRdns.values()]);
+  };
+
+  window.addEventListener("eip6963:announceProvider", onAnnounce);
+  window.dispatchEvent(new Event("eip6963:requestProvider"));
+
+  return () => window.removeEventListener("eip6963:announceProvider", onAnnounce);
+}
+
+/**
+ * Fallback entry for a wallet that predates EIP-6963 and only injects
+ * `window.ethereum`. Without this, an older wallet would be invisible to a picker
+ * built on discovery alone.
+ */
+export function legacyWallet(): DiscoveredWallet | null {
+  const provider = getInjectedProvider();
+  if (!provider) return null;
+  return {
+    info: {
+      uuid: "legacy-injected",
+      name: "Browser wallet",
+      icon: "",
+      rdns: "legacy.injected",
+    },
+    provider,
+  };
+}
+
+
 export const CHAIN = {
   id: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337),
   name: process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Hardhat Local",
@@ -71,9 +147,16 @@ export function walletErrorMessage(error: unknown): string {
 /**
  * Switch networks, adding the chain first if the wallet does not know it. A local
  * development chain is never present by default, which is the common case here.
+ *
+ * Takes the provider explicitly, because with several wallets installed the one
+ * the user picked is not necessarily the one on `window.ethereum`.
  */
-export async function switchChain(chainId: number, chainName: string): Promise<void> {
-  const provider = getInjectedProvider();
+export async function switchChain(
+  chainId: number,
+  chainName: string,
+  target?: Eip1193Provider | null,
+): Promise<void> {
+  const provider = target ?? getInjectedProvider();
   if (!provider) throw new Error("No wallet found");
 
   try {

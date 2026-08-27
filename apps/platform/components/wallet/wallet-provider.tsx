@@ -4,6 +4,7 @@ import * as React from "react";
 import { BrowserProvider } from "ethers";
 
 import {
+  ApiRequestError,
   getMe,
   requestChallenge,
   signOut as apiSignOut,
@@ -12,26 +13,59 @@ import {
 } from "@/lib/api";
 import {
   CHAIN,
-  getInjectedProvider,
+  type DiscoveredWallet,
+  type Eip1193Provider,
   isUserRejection,
+  legacyWallet,
+  subscribeToWallets,
   switchChain,
   walletErrorMessage,
 } from "@/lib/wallet";
 
 /**
+ * Turn a failure into something the user can act on.
+ *
+ * The API returns a deliberately generic "Something went wrong" for unexpected
+ * server errors, which is right for security but useless in an interface. In this
+ * app a 5xx during sign-in almost always means the server could not reach the
+ * chain or the database, so the message says so and names the likely fix rather
+ * than repeating the server's shrug.
+ */
+function describeSignInError(error: unknown): string {
+  if (error instanceof ApiRequestError) {
+    if (error.code === "NOT_CONFIGURED") {
+      return "The server is missing configuration. Check apps/platform/.env.local.";
+    }
+    if (error.status >= 500) {
+      return `The server could not reach ${CHAIN.name} or the database. If you are running locally, start the chain with "npm run dev:chain".`;
+    }
+    if (error.status === 401) {
+      return "That signature was rejected. Try signing in again.";
+    }
+    return error.message;
+  }
+  return walletErrorMessage(error);
+}
+
+/**
  * Wallet connection and session state.
  *
- * Sign-in is four steps and each one is exposed, because three of them can fail
- * for different reasons and a single spinner would leave the user guessing which:
+ * Wallets are discovered through EIP-6963 rather than read off
+ * `window.ethereum`, because that property holds only one provider and installed
+ * wallets overwrite each other on it. Discovery means the user picks which wallet
+ * to use instead of getting whichever one injected last.
  *
- *   connect    ask the wallet for an account
+ * Sign-in is four steps and each is exposed, because three of them fail for
+ * different reasons and a single spinner would leave the user guessing which:
+ *
+ *   connect    ask the chosen wallet for an account
  *   challenge  ask the server for a single-use message
  *   sign       ask the wallet to sign it
  *   verify     hand the signature back for the server to check
  *
- * The session itself is an httpOnly cookie owned by the server. Nothing here
- * stores a token, and roles are never cached: `Me` is re-read from the API, which
- * re-reads them from the chain.
+ * The session is an httpOnly cookie owned by the server. Nothing here stores a
+ * token, and roles are never cached: `Me` is re-read from the API, which re-reads
+ * them from the chain.
  */
 export type SignInStage =
   | "idle"
@@ -43,27 +77,33 @@ export type SignInStage =
   | "error";
 
 interface WalletState {
-  /** Connected account, or null when the wallet is locked or absent. */
   address: string | null;
   chainId: number | null;
-  /** True once the initial session check has finished. */
+  /** True once the initial session and wallet checks have finished. */
   ready: boolean;
   session: Me | null;
   stage: SignInStage;
   error: string | null;
-  hasWallet: boolean;
+  /** Every wallet the browser announced, plus a legacy fallback if needed. */
+  wallets: DiscoveredWallet[];
+  /** The wallet currently in use, once one has been chosen. */
+  active: DiscoveredWallet | null;
   wrongChain: boolean;
-  connect: () => Promise<void>;
-  signIn: () => Promise<void>;
+  signIn: (wallet: DiscoveredWallet) => Promise<void>;
   signOut: () => Promise<void>;
   fixChain: () => Promise<void>;
   refresh: (orgId?: number) => Promise<void>;
+  dismissError: () => void;
 }
 
 const WalletContext = React.createContext<WalletState | null>(null);
 
 function normaliseAccounts(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((v): v is string => typeof v === "string") : [];
+}
+
+function parseChainId(value: unknown): number | null {
+  return typeof value === "string" ? Number.parseInt(value, 16) : null;
 }
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
@@ -73,47 +113,49 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = React.useState(false);
   const [stage, setStage] = React.useState<SignInStage>("idle");
   const [error, setError] = React.useState<string | null>(null);
-  const [hasWallet, setHasWallet] = React.useState(false);
+  const [wallets, setWallets] = React.useState<DiscoveredWallet[]>([]);
+  const [active, setActive] = React.useState<DiscoveredWallet | null>(null);
 
-  /* Initial state: is a wallet present, is one already connected, and is there
-     already a valid session cookie from a previous visit. */
+  /* Discovery. Announcements can arrive at any time, so this listener stays
+     attached for the life of the page rather than resolving once. */
+  React.useEffect(() => {
+    const unsubscribe = subscribeToWallets((found) => {
+      setWallets(found.length > 0 ? found : ([legacyWallet()].filter(Boolean) as DiscoveredWallet[]));
+    });
+
+    // Nothing announced means either no wallet, or one too old to announce.
+    const settle = window.setTimeout(() => {
+      setWallets((current) => {
+        if (current.length > 0) return current;
+        const legacy = legacyWallet();
+        return legacy ? [legacy] : [];
+      });
+      setReady(true);
+    }, 350);
+
+    return () => {
+      unsubscribe();
+      window.clearTimeout(settle);
+    };
+  }, []);
+
+  /* Existing session from a previous visit. */
   React.useEffect(() => {
     let cancelled = false;
-
-    const boot = async () => {
-      const provider = getInjectedProvider();
-      if (provider) {
-        if (!cancelled) setHasWallet(true);
-        try {
-          // eth_accounts does not prompt; it only reports existing permission.
-          const accounts = normaliseAccounts(await provider.request({ method: "eth_accounts" }));
-          const currentChain = await provider.request({ method: "eth_chainId" });
-          if (!cancelled) {
-            setAddress(accounts[0] ?? null);
-            setChainId(typeof currentChain === "string" ? Number.parseInt(currentChain, 16) : null);
-          }
-        } catch {
-          // A locked or hostile provider is treated as simply not connected.
-        }
-      }
-
-      const me = await getMe().catch(() => null);
-      if (!cancelled) {
-        setSession(me);
-        setReady(true);
-      }
-    };
-
-    void boot();
+    void getMe()
+      .catch(() => null)
+      .then((me) => {
+        if (!cancelled) setSession(me);
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  /* Wallet events. An account or chain change invalidates what is on screen, so
-     the session is re-read rather than assumed to still apply. */
+  /* Events from the wallet in use. Re-subscribed when the active wallet changes,
+     so events from a wallet the user switched away from are ignored. */
   React.useEffect(() => {
-    const provider = getInjectedProvider();
+    const provider = active?.provider;
     if (!provider?.on) return;
 
     const onAccounts = (...args: unknown[]) => {
@@ -125,10 +167,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         .catch(() => setSession(null));
     };
 
-    const onChain = (...args: unknown[]) => {
-      const next = args[0];
-      setChainId(typeof next === "string" ? Number.parseInt(next, 16) : null);
-    };
+    const onChain = (...args: unknown[]) => setChainId(parseChainId(args[0]));
 
     provider.on("accountsChanged", onAccounts);
     provider.on("chainChanged", onChain);
@@ -136,76 +175,54 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       provider.removeListener?.("accountsChanged", onAccounts);
       provider.removeListener?.("chainChanged", onChain);
     };
+  }, [active]);
+
+  const readChain = React.useCallback(async (provider: Eip1193Provider) => {
+    const current = await provider.request({ method: "eth_chainId" }).catch(() => null);
+    setChainId(parseChainId(current));
   }, []);
 
-  const connect = React.useCallback(async () => {
-    const provider = getInjectedProvider();
-    if (!provider) {
-      setError("No browser wallet found. Install MetaMask to continue.");
-      setStage("error");
-      return;
-    }
+  const signIn = React.useCallback(
+    async (wallet: DiscoveredWallet) => {
+      setError(null);
+      setActive(wallet);
+      const injected = wallet.provider;
 
-    setError(null);
-    setStage("connect");
-    try {
-      const accounts = normaliseAccounts(
-        await provider.request({ method: "eth_requestAccounts" }),
-      );
-      if (accounts.length === 0) throw new Error("Wallet returned no accounts");
-      setAddress(accounts[0]);
+      try {
+        // 1. Account.
+        setStage("connect");
+        const accounts = normaliseAccounts(
+          await injected.request({ method: "eth_requestAccounts" }),
+        );
+        const account = accounts[0];
+        if (!account) throw new Error("Wallet returned no accounts");
+        setAddress(account);
+        await readChain(injected);
 
-      const currentChain = await provider.request({ method: "eth_chainId" });
-      setChainId(typeof currentChain === "string" ? Number.parseInt(currentChain, 16) : null);
-      setStage("idle");
-    } catch (caught) {
-      setError(walletErrorMessage(caught));
-      setStage(isUserRejection(caught) ? "idle" : "error");
-    }
-  }, []);
+        // 2. Challenge. The server decides what gets signed, so the client cannot
+        //    be talked into signing something of its own construction.
+        setStage("challenge");
+        const challenge = await requestChallenge(account);
 
-  const signIn = React.useCallback(async () => {
-    const injected = getInjectedProvider();
-    if (!injected) {
-      setError("No browser wallet found. Install MetaMask to continue.");
-      setStage("error");
-      return;
-    }
+        // 3. Signature. A plain message signature: no gas, no transaction.
+        setStage("sign");
+        const provider = new BrowserProvider(injected);
+        const signer = await provider.getSigner();
+        const signature = await signer.signMessage(challenge.message);
 
-    setError(null);
-    try {
-      // 1. Account.
-      setStage("connect");
-      const accounts = normaliseAccounts(
-        await injected.request({ method: "eth_requestAccounts" }),
-      );
-      const wallet = accounts[0];
-      if (!wallet) throw new Error("Wallet returned no accounts");
-      setAddress(wallet);
+        // 4. Verification. The cookie is set here, by the server.
+        setStage("verify");
+        await verifySignature(challenge.message, signature);
 
-      // 2. Challenge. The server decides what gets signed, so the client cannot
-      //    be tricked into signing something of its own construction.
-      setStage("challenge");
-      const challenge = await requestChallenge(wallet);
-
-      // 3. Signature. This is a plain message signature: no gas, no transaction.
-      setStage("sign");
-      const provider = new BrowserProvider(injected);
-      const signer = await provider.getSigner();
-      const signature = await signer.signMessage(challenge.message);
-
-      // 4. Verification. The cookie is set here, by the server.
-      setStage("verify");
-      await verifySignature(challenge.message, signature);
-
-      const me = await getMe();
-      setSession(me);
-      setStage("done");
-    } catch (caught) {
-      setError(walletErrorMessage(caught));
-      setStage(isUserRejection(caught) ? "idle" : "error");
-    }
-  }, []);
+        setSession(await getMe());
+        setStage("done");
+      } catch (caught) {
+        setError(describeSignInError(caught));
+        setStage(isUserRejection(caught) ? "idle" : "error");
+      }
+    },
+    [readChain],
+  );
 
   const signOut = React.useCallback(async () => {
     await apiSignOut().catch(() => null);
@@ -216,15 +233,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const fixChain = React.useCallback(async () => {
     try {
-      await switchChain(CHAIN.id, CHAIN.name);
+      await switchChain(CHAIN.id, CHAIN.name, active?.provider ?? null);
+      if (active) await readChain(active.provider);
     } catch (caught) {
       setError(walletErrorMessage(caught));
     }
-  }, []);
+  }, [active, readChain]);
 
   const refresh = React.useCallback(async (orgId?: number) => {
-    const me = await getMe(orgId).catch(() => null);
-    setSession(me);
+    setSession(await getMe(orgId).catch(() => null));
+  }, []);
+
+  const dismissError = React.useCallback(() => {
+    setError(null);
+    setStage("idle");
   }, []);
 
   const value: WalletState = {
@@ -234,14 +256,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     session,
     stage,
     error,
-    hasWallet,
+    wallets,
+    active,
     // Only meaningful once a chain is known; an absent wallet is not "wrong".
     wrongChain: chainId !== null && chainId !== CHAIN.id,
-    connect,
     signIn,
     signOut,
     fixChain,
     refresh,
+    dismissError,
   };
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

@@ -4,44 +4,95 @@ import * as React from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 import { cn } from "@/lib/cn";
-import { CHAIN, shortAddress } from "@/lib/wallet";
-import { Badge, Identicon } from "@/components/ui";
+import { type DiscoveredWallet, shortAddress } from "@/lib/wallet";
+import { Identicon } from "@/components/ui";
 
 import { useWallet, type SignInStage } from "./wallet-provider";
+import { WalletList } from "./wallet-list";
 
-/** What each stage is waiting on, in the user's terms rather than the protocol's. */
-const STAGE_LABEL: Record<Exclude<SignInStage, "idle" | "done" | "error">, string> = {
+/** What each stage waits on, in the user's terms rather than the protocol's. */
+const STAGE_LABEL = {
   connect: "Waiting for your wallet",
   challenge: "Requesting a challenge",
   sign: "Sign the message in your wallet",
   verify: "Verifying your signature",
-};
+} as const;
 
-const STAGE_ORDER: Array<keyof typeof STAGE_LABEL> = [
-  "connect",
-  "challenge",
-  "sign",
-  "verify",
-];
+const STAGE_ORDER = ["connect", "challenge", "sign", "verify"] as const;
 
 /**
  * Sign-in control.
  *
+ * Everything it opens is an absolutely positioned popover anchored to the button.
+ * Rendering the status inline made the header grow and pushed the button off the
+ * side of the screen, so the panel is taken out of flow and pinned to the button's
+ * end edge instead.
+ *
  * Signing in costs no gas and sends no transaction, which is worth saying out
- * loud: users have learned to expect a fee prompt whenever a wallet opens, and
- * hesitate when they do not know which kind of request this is.
+ * loud: people have learned to expect a fee prompt whenever a wallet opens.
  */
 export function ConnectButton({ className }: { className?: string }) {
-  const { address, session, stage, error, hasWallet, ready, wrongChain, signIn, signOut, fixChain } =
-    useWallet();
+  const {
+    session,
+    stage,
+    error,
+    ready,
+    wallets,
+    signIn,
+    signOut,
+    dismissError,
+  } = useWallet();
   const reduceMotion = useReducedMotion();
+  const [picking, setPicking] = React.useState(false);
+  const rootRef = React.useRef<HTMLDivElement>(null);
 
   const busy = stage !== "idle" && stage !== "done" && stage !== "error";
+  const open = picking || busy || Boolean(error);
+
+  // Any open panel closes on Escape or on a click outside it.
+  React.useEffect(() => {
+    if (!open) return;
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setPicking(false);
+      if (error) dismissError();
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (rootRef.current?.contains(event.target as Node)) return;
+      setPicking(false);
+      if (error) dismissError();
+    };
+
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("pointerdown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("pointerdown", onPointer);
+    };
+  }, [open, error, dismissError]);
+
+  const onPrimary = () => {
+    if (error) dismissError();
+    if (wallets.length === 0) return;
+    // One wallet needs no choice; several do.
+    if (wallets.length === 1) {
+      setPicking(false);
+      void signIn(wallets[0]);
+    } else {
+      setPicking((value) => !value);
+    }
+  };
+
+  /** Choosing a wallet closes the picker and starts the flow in one step. */
+  const onPick = (wallet: DiscoveredWallet) => {
+    setPicking(false);
+    void signIn(wallet);
+  };
 
   if (session) {
     return (
       <div className={cn("flex items-center gap-2", className)}>
-        {wrongChain ? <WrongChainPill onFix={fixChain} /> : null}
         <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface py-1 ps-1 pe-3">
           <Identicon value={session.wallet} size={26} />
           <span className="font-mono text-xs text-ink">
@@ -59,60 +110,56 @@ export function ConnectButton({ className }: { className?: string }) {
     );
   }
 
+  const noWallet = ready && wallets.length === 0;
+
   return (
-    <div className={cn("flex flex-col items-end gap-2", className)}>
-      <div className="flex items-center gap-2">
-        {wrongChain ? <WrongChainPill onFix={fixChain} /> : null}
+    /* Network state is deliberately not shown here. The header carries a
+       NetworkChip and the console carries a full banner, so repeating it inside
+       this control produced two "Wrong network" pills side by side. */
+    <div ref={rootRef} className={cn("relative flex items-center gap-2", className)}>
+      {noWallet ? (
+        <a
+          href="https://metamask.io/download/"
+          target="_blank"
+          rel="noreferrer noopener"
+          className={PRIMARY_CLASS}
+        >
+          Install a wallet
+        </a>
+      ) : (
+        <button
+          type="button"
+          onClick={onPrimary}
+          disabled={busy || !ready}
+          aria-busy={busy}
+          aria-haspopup={wallets.length > 1 ? "dialog" : undefined}
+          aria-expanded={wallets.length > 1 ? picking : undefined}
+          className={PRIMARY_CLASS}
+        >
+          {busy ? <Spinner /> : null}
+          {busy ? "Signing in" : "Connect wallet"}
+        </button>
+      )}
 
-        {/* Detection runs after mount, so until it finishes the button stays
-            neutral rather than accusing the visitor of not having a wallet. */}
-        {ready && !hasWallet ? (
-          <a
-            href="https://metamask.io/download/"
-            target="_blank"
-            rel="noreferrer noopener"
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5",
-              "font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-brand-ink",
-              "transition-colors duration-200 hover:bg-brand-hover",
-            )}
-          >
-            Install a wallet
-          </a>
-        ) : (
-          <button
-            type="button"
-            onClick={() => void signIn()}
-            disabled={busy || !ready}
-            aria-busy={busy}
-            className={cn(
-              "inline-flex items-center gap-2 rounded-full bg-brand px-5 py-2.5",
-              "font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-brand-ink",
-              "transition-colors duration-200 hover:bg-brand-hover",
-              "disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-brand",
-            )}
-          >
-            {busy ? <Spinner /> : null}
-            {busy ? "Signing in" : address ? "Sign in" : "Connect wallet"}
-          </button>
-        )}
-      </div>
-
+      {/* Out of flow, pinned to the button, so the header cannot be stretched. */}
       <AnimatePresence>
-        {busy || error ? (
+        {open ? (
           <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -4 }}
-            transition={{ duration: reduceMotion ? 0 : 0.2 }}
-            className="w-full max-w-xs rounded-lg border border-border bg-surface p-3 shadow-card"
-            role="status"
-            aria-live="polite"
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }}
+            transition={{ duration: reduceMotion ? 0 : 0.18 }}
+            className="absolute end-0 top-full z-50 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-surface p-3 shadow-lifted"
+            role={picking ? "dialog" : "status"}
+            aria-label={picking ? "Choose a wallet" : undefined}
+            aria-live={picking ? undefined : "polite"}
           >
             {error ? (
-              <p className="text-xs leading-relaxed text-danger">{error}</p>
-            ) : (
+              <ErrorPanel message={error} onDismiss={dismissError} />
+            ) : busy ? (
               <SigningRail stage={stage} />
+            ) : (
+              <WalletList wallets={wallets} onPick={onPick} />
             )}
           </motion.div>
         ) : null}
@@ -121,9 +168,16 @@ export function ConnectButton({ className }: { className?: string }) {
   );
 }
 
+const PRIMARY_CLASS = cn(
+  "inline-flex shrink-0 items-center gap-2 rounded-full bg-brand px-5 py-2.5",
+  "font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-brand-ink",
+  "transition-colors duration-200 hover:bg-brand-hover",
+  "disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:bg-brand",
+);
+
 /** The four steps, so a stall is attributable to a specific one. */
 function SigningRail({ stage }: { stage: SignInStage }) {
-  const activeIndex = STAGE_ORDER.indexOf(stage as keyof typeof STAGE_LABEL);
+  const activeIndex = STAGE_ORDER.indexOf(stage as (typeof STAGE_ORDER)[number]);
 
   return (
     <div>
@@ -131,7 +185,7 @@ function SigningRail({ stage }: { stage: SignInStage }) {
       <ol className="flex flex-col gap-1.5">
         {STAGE_ORDER.map((key, index) => {
           const done = index < activeIndex;
-          const active = index === activeIndex;
+          const current = index === activeIndex;
           return (
             <li key={key} className="flex items-center gap-2.5">
               <span
@@ -139,14 +193,14 @@ function SigningRail({ stage }: { stage: SignInStage }) {
                 className={cn(
                   "size-1.5 shrink-0 rounded-full",
                   done && "bg-success",
-                  active && "bg-brand motion-safe:animate-pulse",
-                  !done && !active && "bg-border",
+                  current && "bg-brand motion-safe:animate-pulse",
+                  !done && !current && "bg-border",
                 )}
               />
               <span
                 className={cn(
                   "text-xs",
-                  active ? "text-ink" : done ? "text-ink-muted" : "text-ink-faint",
+                  current ? "text-ink" : done ? "text-ink-muted" : "text-ink-faint",
                 )}
               >
                 {STAGE_LABEL[key]}
@@ -162,16 +216,25 @@ function SigningRail({ stage }: { stage: SignInStage }) {
   );
 }
 
-function WrongChainPill({ onFix }: { onFix: () => Promise<void> }) {
+function ErrorPanel({
+  message,
+  onDismiss,
+}: {
+  message: string;
+  onDismiss: () => void;
+}) {
   return (
-    <button
-      type="button"
-      onClick={() => void onFix()}
-      title={`Switch to ${CHAIN.name}`}
-      className="rounded-full"
-    >
-      <Badge tone="warn">Wrong network, switch to {CHAIN.name}</Badge>
-    </button>
+    <div role="alert">
+      <p className="label-xs mb-2 text-danger">Could not sign in</p>
+      <p className="text-xs leading-relaxed text-ink-muted">{message}</p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="mt-3 rounded-md border border-border px-3 py-1.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.1em] text-ink transition-colors duration-150 hover:bg-brand-soft"
+      >
+        Dismiss
+      </button>
+    </div>
   );
 }
 

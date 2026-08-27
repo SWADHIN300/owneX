@@ -1,5 +1,6 @@
 import { BrandLockup } from "@/components/brand";
-import { Button, GlassCard } from "@/components/ui";
+import { GlassCard } from "@/components/ui";
+import { GetStartedButton } from "@/components/wallet/get-started-button";
 
 const COLUMNS = [
   {
@@ -37,14 +38,13 @@ export function SiteFooter() {
               </p>
             </div>
             <div className="flex flex-wrap gap-3 lg:justify-end">
-              <Button size="lg">Get started</Button>
-              <Button
-                size="lg"
-                variant="secondary"
-                className="border-white/20 bg-white/10 text-white hover:bg-white/15"
+              <GetStartedButton />
+              <a
+                href="#evidence"
+                className="inline-flex items-center justify-center rounded-full border border-white/20 bg-white/10 px-8 py-4 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors duration-200 hover:bg-white/15"
               >
                 Read the docs
-              </Button>
+              </a>
             </div>
           </div>
         </GlassCard>
