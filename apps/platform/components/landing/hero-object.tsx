@@ -27,19 +27,21 @@ interface Facet {
 }
 
 // Table at y=90 (x 225 to 375), girdle at y=250 (x 60 to 540), culet at y=560.
+// Fills come from tokens, so the stone is dark emerald on the lime canvas and
+// warm on the deep green one without this file knowing which theme is active.
 const FACETS: Facet[] = [
   // Crown, left to right. Tone lifts toward the centre to suggest a light source.
-  { points: "225,90 60,250 180,250", fill: "#b8430f", from: 26 },
-  { points: "225,90 180,250 300,250", fill: "#ef6a22", from: 22 },
-  { points: "225,90 375,90 300,250", fill: "#ffb98c", from: 18 },
-  { points: "375,90 300,250 420,250", fill: "#ff8845", from: 22 },
-  { points: "375,90 420,250 540,250", fill: "#c74a12", from: 26 },
+  { points: "225,90 60,250 180,250", fill: "var(--facet-dark)", from: 26 },
+  { points: "225,90 180,250 300,250", fill: "var(--facet-mid)", from: 22 },
+  { points: "225,90 375,90 300,250", fill: "var(--facet-light)", from: 18 },
+  { points: "375,90 300,250 420,250", fill: "var(--facet-midlight)", from: 22 },
+  { points: "375,90 420,250 540,250", fill: "var(--facet-dark)", from: 26 },
 
   // Pavilion. The right side is the shadow side, which gives the stone volume.
-  { points: "60,250 300,250 300,560", fill: "#e0621f", from: 40 },
-  { points: "540,250 300,250 300,560", fill: "#9c3a0c", from: 40 },
+  { points: "60,250 300,250 300,560", fill: "var(--facet-mid)", from: 40 },
+  { points: "540,250 300,250 300,560", fill: "var(--facet-darkest)", from: 40 },
   // Inner reflection running down the axis.
-  { points: "180,250 420,250 300,470", fill: "#ff9c62", from: 32 },
+  { points: "180,250 420,250 300,470", fill: "var(--facet-midlight)", from: 32 },
 ];
 
 // Seams drawn in the page colour, so the facets read as cut edges.
@@ -54,10 +56,10 @@ export function HeroObject({ className }: { className?: string }) {
       aria-hidden
       className={cn("pointer-events-none relative w-full", className)}
     >
-      {/* Warm bloom, so the stone sits in the page rather than on top of it. */}
+      {/* Bloom, so the stone sits in the page rather than on top of it. */}
       <div
         className="absolute bottom-0 left-1/2 h-2/3 w-[62%] -translate-x-1/2 rounded-full blur-3xl"
-        style={{ background: "rgba(255, 122, 47, 0.18)" }}
+        style={{ background: "var(--glow)" }}
       />
 
       <svg

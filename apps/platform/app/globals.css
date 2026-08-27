@@ -1,18 +1,79 @@
 @import "tailwindcss";
 
 /* Dark is class-driven so next-themes owns the switch and the pre-paint script
- * avoids a flash. `.light` is the alternate; the deep green below is the base. */
-@custom-variant light (&:is(.light *));
+ * avoids a flash. `:root` is the lime canvas; `.dark` is the deep green. */
+@custom-variant dark (&:is(.dark *));
 
 /* ==========================================================================
-   Primary theme: deep green canvas, pale ice ink.
+   Primary theme: pale lime canvas, deep green ink.
 
-   Not near-black. The canvas is a saturated dark green in the same family as
-   the brand (#003C38), which is what gives the page its temperature. Ink is a
-   pale ice blue rather than white, because pure white on saturated green
-   vibrates.
+   The canvas is a yellow-green (#DEF6C6), so every green that sits on it is
+   pulled to the same warm side. A blue-green accent on this canvas reads as a
+   different palette, which is why the accent here is a deep moss-teal rather
+   than the brighter #00A98F: that value only reaches 2.56:1 on lime and cannot
+   carry text or even a status dot.
    ========================================================================== */
 :root {
+  --background: #def6c6;
+  --surface: #ffffff;
+  --surface-2: #eaf8d9;
+  --surface-3: #d4f0b6;
+
+  --ink: #16241d;
+  --ink-muted: #45564a;
+  --ink-faint: #5d7062;
+
+  /* The dark anchor. Used for primary buttons and the hero object. */
+  --brand: #0a3a2c;
+  --brand-hover: #0f4d3a;
+  --brand-ink: #eafad8;
+  --brand-soft: #cdeeb2;
+  --brand-line: #a8d98a;
+
+  --accent: #00614f;
+  --accent-ink: #ffffff;
+  --flare: #a8430c;
+  --flare-ink: #ffffff;
+
+  --data: #1f3fa8;
+  --success: #16653f;
+  --warn: #7a4a10;
+  --danger: #97231f;
+
+  --border: #b9dd98;
+  --border-soft: #cbe9ae;
+  --ring: #00614f;
+
+  /* Hero stone facets. Dark emerald on the light canvas. */
+  --facet-darkest: #04211a;
+  --facet-dark: #073024;
+  --facet-mid: #0d4534;
+  --facet-midlight: #145c44;
+  --facet-light: #1d7a5b;
+
+  --grid-line: rgba(22, 36, 29, 0.06);
+  --glow: rgba(10, 58, 44, 0.14);
+
+  --gradient-dawn: linear-gradient(135deg, #ffffff 0%, #eaf8d9 55%, #d4f0b6 100%);
+  --gradient-aurora: linear-gradient(135deg, #0a3a2c 0%, #00614f 55%, #7ec9a0 100%);
+  --gradient-deep: linear-gradient(160deg, #0d3f30 0%, #072a20 45%, #041a14 100%);
+  --gradient-canopy: linear-gradient(135deg, #0a3a2c 0%, #2f6b1f 100%);
+  --gradient-sand: linear-gradient(135deg, #f7f4e6 0%, #e8e1c9 100%);
+  --gradient-dusk: linear-gradient(135deg, #0d3229 0%, #1b2b3f 100%);
+  --gradient-flare: linear-gradient(135deg, #c9520f 0%, #8f3608 100%);
+
+  --shadow-sm: 0 1px 2px rgba(22, 36, 29, 0.06);
+  --shadow-md: 0 2px 4px rgba(22, 36, 29, 0.05), 0 10px 24px -12px rgba(10, 58, 44, 0.2);
+  --shadow-lg: 0 4px 8px rgba(22, 36, 29, 0.06), 0 28px 56px -24px rgba(10, 58, 44, 0.28);
+  --shadow-glow: 0 0 0 1px var(--brand-line), 0 10px 36px -14px var(--glow);
+
+  --radius: 0.75rem;
+}
+
+/* ==========================================================================
+   Dark theme: the deep green canvas, kept from the previous direction.
+   ========================================================================== */
+.dark {
   --background: #052e29;
   --surface: #073a34;
   --surface-2: #0a443d;
@@ -30,8 +91,6 @@
 
   --accent: #7fe9d0;
   --accent-ink: #032420;
-  /* The warm counterpoint. One warm colour against all that green is what stops
-     the page reading as monochrome. */
   --flare: #ff7a2f;
   --flare-ink: #2a0f02;
 
@@ -43,6 +102,12 @@
   --border: #14514a;
   --border-soft: #0d423c;
   --ring: #7fe9d0;
+
+  --facet-darkest: #9c3a0c;
+  --facet-dark: #c74a12;
+  --facet-mid: #ef6a22;
+  --facet-midlight: #ff8845;
+  --facet-light: #ffb98c;
 
   --grid-line: rgba(214, 236, 245, 0.045);
   --glow: rgba(53, 201, 173, 0.18);
@@ -59,59 +124,6 @@
   --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px -14px rgba(0, 0, 0, 0.7);
   --shadow-lg: 0 4px 10px rgba(0, 0, 0, 0.45), 0 32px 64px -28px rgba(0, 0, 0, 0.85);
   --shadow-glow: 0 0 0 1px var(--brand-line), 0 12px 44px -16px var(--glow);
-
-  --radius: 0.75rem;
-}
-
-/* ==========================================================================
-   Alternate theme: green-tinted off-white. Not pure white, so the two themes
-   feel like one family rather than two products.
-   ========================================================================== */
-.light {
-  --background: #f1f6f4;
-  --surface: #ffffff;
-  --surface-2: #e9f1ee;
-  --surface-3: #dfeae6;
-
-  --ink: #062521;
-  --ink-muted: #47605b;
-  --ink-faint: #6d857f;
-
-  --brand: #00534c;
-  --brand-hover: #006c62;
-  --brand-ink: #ffffff;
-  --brand-soft: #e2eeeb;
-  --brand-line: #b9d3cd;
-
-  --accent: #00695c;
-  --accent-ink: #ffffff;
-  --flare: #b8480f;
-  --flare-ink: #ffffff;
-
-  --data: #24439f;
-  --success: #14663f;
-  --warn: #7a4a10;
-  --danger: #9d2f2f;
-
-  --border: #cddcd7;
-  --border-soft: #dfeae6;
-  --ring: #00695c;
-
-  --grid-line: rgba(6, 37, 33, 0.055);
-  --glow: rgba(0, 105, 92, 0.14);
-
-  --gradient-dawn: linear-gradient(135deg, #ffffff 0%, #e9f1ee 55%, #d8e8e3 100%);
-  --gradient-aurora: linear-gradient(135deg, #00302c 0%, #00695c 55%, #35c9ad 100%);
-  --gradient-deep: linear-gradient(160deg, #063731 0%, #04211e 45%, #021411 100%);
-  --gradient-canopy: linear-gradient(135deg, #00534c 0%, #17714a 100%);
-  --gradient-sand: linear-gradient(135deg, #f7f4ee 0%, #ebe4d8 100%);
-  --gradient-dusk: linear-gradient(135deg, #0f302e 0%, #1f2d44 100%);
-  --gradient-flare: linear-gradient(135deg, #d95a17 0%, #a13c0c 100%);
-
-  --shadow-sm: 0 1px 2px rgba(6, 37, 33, 0.05);
-  --shadow-md: 0 2px 4px rgba(6, 37, 33, 0.04), 0 10px 24px -12px rgba(0, 83, 76, 0.18);
-  --shadow-lg: 0 4px 8px rgba(6, 37, 33, 0.05), 0 28px 56px -24px rgba(0, 83, 76, 0.26);
-  --shadow-glow: 0 0 0 1px var(--brand-line), 0 10px 36px -14px var(--glow);
 }
 
 /* ==========================================================================
@@ -190,8 +202,8 @@
   }
 
   ::selection {
-    background-color: var(--accent);
-    color: var(--accent-ink);
+    background-color: var(--brand);
+    color: var(--brand-ink);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -241,12 +253,11 @@
 }
 
 @utility glass {
-  background-color: color-mix(in srgb, var(--surface) 72%, transparent);
+  background-color: color-mix(in srgb, var(--background) 78%, transparent);
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
 
-/** Uppercase micro label. Monospace, because these sit next to protocol data. */
 @utility label-xs {
   font-family: var(--font-martian-mono), ui-monospace, monospace;
   font-size: 0.625rem;
@@ -255,10 +266,6 @@
   text-transform: uppercase;
 }
 
-/**
- * Oversized display type. Martian Mono is wide, so tracking is pulled in hard
- * and the line box is tightened to let lines stack the way the reference does.
- */
 @utility display {
   font-family: var(--font-martian-mono), ui-monospace, monospace;
   font-weight: 800;
@@ -268,7 +275,6 @@
   text-wrap: balance;
 }
 
-/** Smaller headings: same face, less extreme. */
 @utility display-sm {
   font-family: var(--font-martian-mono), ui-monospace, monospace;
   font-weight: 700;

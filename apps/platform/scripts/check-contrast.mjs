@@ -83,7 +83,7 @@ const PAIRS = [
   ["border", "surface", 1.3, "border against card"],
 ];
 
-const themes = { green: block(":root"), light: block("\\.light") };
+const themes = { lime: block(":root"), dark: block("\\.dark") };
 const failures = [];
 const rows = [];
 
