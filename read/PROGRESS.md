@@ -3,8 +3,8 @@
 Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
-**Last updated:** 2026-08-27 · after Phase 4 (design system + landing)
-**Overall:** 4 of 8 phases done · 93 contract tests + 86 API assertions + 44 contrast checks passing · no blockers
+**Last updated:** 2026-08-28 · after Phase 5 write paths, applications, onboarding
+**Overall:** 5 of 8 phases done · 93 contract tests + 130 API assertions + 60 contrast checks passing · no blockers
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -20,7 +20,7 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 | 2 | Tests + local deploy + demo seed | ✅ done | `phase-2-tests-and-deploy.md` |
 | 3 | Backend: Supabase + SIWE auth + role API | ✅ done | `phase-3-backend.md` |
 | 4 | Design system + landing page | ✅ done | `phase-4-frontend.md` |
-| 5 | Platform dashboard (all pages) | ⬜ next | — |
+| 5 | Platform dashboard (all pages) | ✅ done | — |
 | 6 | Employee Portal (second app) | ⬜ | — |
 | 7 | Sepolia deploy + polish | ⬜ | — |
 | 8 | Docs + demo video + submission | ⬜ | — |
@@ -203,24 +203,133 @@ Built and verified. Detail in `phase-4-frontend.md`.
 Not wired yet: "Connect wallet" is presentational, and the network chip is
 hard-coded to 31337 until a provider is connected. Both land in Phase 5.
 
-## Phase 5 — Platform dashboard ⬜
+## Phase 5 — Platform dashboard ✅
+
+Done and verified against a live chain:
 
 ```
-⬜ Wallet connect modal + 4-stage signing rail
-⬜ Onboarding (Individual vs Organization fork)
-⬜ App shell (sidebar, topbar, org switcher, network chip)
-⬜ Admin overview (stat cards + org graph + activity feed)
-⬜ My Identity
-⬜ Members (table, invite modal, role actions)
-⬜ Roles & Permissions (cards + permission matrix + confirmations)
-⬜ Applications (connected apps + integration rail)
-⬜ Asset Vault (grid/table, certificate cards, filters)
-⬜ Mint NFT wizard (off-chain vs on-chain split columns)
-⬜ Asset detail (provenance + verify ownership animation)
-⬜ Audit Trail (blockchain timeline from events)
-⬜ User dashboard (simple, no admin controls, no jargon)
-⬜ Every required state: loading, empty, wrong network, denied, revoked, RPC fail
+✅ Wallet connect + 4-stage signing rail (EIP-6963 discovery, real SIWE)
+✅ App shell (sidebar, mobile nav strip, topbar, network chip)
+✅ Admin overview, adapts to a plain user's role on the same route
+✅ My Identity
+✅ Onboarding — Individual vs Organisation fork, both wired to real transactions
+✅ Members — roster, add/change-role/remove, all wired to real transactions
+✅ Roles & Permissions — tri-state matrix, override writes wired
+✅ Applications — connected apps, per-role access toggles wired
+✅ Asset Vault — certificate grid, table alternative, filters
+✅ Mint wizard — off-chain vs on-chain split columns, wired end to end
+✅ Asset detail — provenance, integrity check, transfer lock explained
+✅ Audit Trail — filters, cursor paging, tx hash + block, chain re-sync
+✅ Every required state: loading, empty, denied, wrong network, revoked, RPC fail
 ```
+
+Phase 5 is functionally complete. Nothing from the original scope remains
+unbuilt: Members, Roles, Applications, the mint wizard and onboarding are all
+built and wired to real transactions, and the overview adapts to the caller's
+role instead of a separate user dashboard.
+
+**Backend surface — five endpoints**, all following the patterns in
+`app/api/assets/route.ts` (`handler`, `requireMember`/`requirePermission`,
+`okNoStore`, zod):
+
+| Route | Purpose |
+|---|---|
+| `GET /api/members?orgId=` | roster with role, expiry, identity state, asset count |
+| `GET /api/roles/matrix?orgId=` | 24 cells: contract default, org override, effective |
+| `GET /api/applications?orgId=` | connected apps with on-chain registration + per-role access |
+| `POST /api/applications` | saves display record, returns `registerApplication` args |
+| `POST /api/organizations` + `/confirm` | prepares and binds a new org, same pattern as asset mint/confirm |
+
+Plus two chain helpers in `lib/chain/index.ts`: `readOrgMembers` and
+`readPermissionMatrix`.
+
+`readOrgMembers` unions the root admin into the contract's `getMembers` list.
+The root admin becomes admin through `createOrganization`, which never touches
+`_memberList`, so a roster built from the enumeration alone omits the one member
+who can never be removed. The seeded org therefore shows **six** members, not
+five.
+
+**Write paths are wired**, not merely designed. A shared four-stage rail
+(`components/console/tx/use-transaction.ts`) — prepare, sign, mine, record —
+backs every write in the console: mint, add/change-role/remove member, set
+permission override, register/toggle an application, and both onboarding forks.
+`lib/contracts.ts` is a client-safe ABI layer with human-readable fragments
+instead of the server's full JSON, and because it includes the custom error
+fragments, ethers decodes reverts by name — `lib/tx-errors.ts` turns
+`CannotTargetSelf` into "nobody promotes themselves, including a full admin"
+rather than "execution reverted".
+
+Proven against the live chain, not just rendered: a real `mintAsset` (tokens
+#4–#6, real tx hashes, confirmed and verified), a real `assignRole` that changed
+a seeded auditor to manager and back, and a real `addMember` that reverted
+`IdentityNotActive` for a wallet with no identity.
+
+### Six bugs the verification found
+
+None of these were visible from a passing build.
+
+1. **A visually hidden label widened the page by 332px.** `sr-only` is
+   `position: absolute`, so inside a scrolling table with no positioned ancestor
+   its containing block is the page and the scroller cannot clip it. One 1px
+   "Actions" header pushed the document to 722px at a 390px viewport. Fixed by
+   making each table scroller a containing block; `console-shots.mjs` now reports
+   escaping positioned elements by name instead of just the symptom.
+2. **The network chip read "No network" after any page load.** `address` and
+   `chainId` are React state and do not survive navigation, while the session
+   lives in a cookie. Worse than cosmetic: the wrong-network check could not fire
+   at all. Fixed with a silent reconnect using `eth_accounts`, which never
+   prompts.
+3. **"Sign in to continue" when the chain was down.** The shell treated any
+   failure from `/api/identity/me` as signed out. Now a 401 means signed out and
+   anything else surfaces as "could not reach the chain", with the command that
+   fixes it.
+4. **"was NONE" beside the root admin's role.** The stored role is only worth
+   showing when it disagrees with the effective one; the root admin has no stored
+   record at all.
+5. **`session.permissions` was typed as `string[]`** when the route actually
+   returns `Record<PermissionKey, boolean>`. Every `.includes()` against it
+   crashed the page the moment a real sign-in reached a screen that checked a
+   permission — caught only by driving a real wallet through the app, not by
+   inspection. Fixed the type and every call site.
+6. **The change-role dialog always opened on "User"** regardless of the
+   member's actual role. Split into an inner form keyed on the wallet, so
+   switching targets remounts it and the selection starts on what that member
+   actually holds.
+
+### Verification
+
+```
+npm run check:contrast    60 checks, both themes          ✅
+npm run typecheck                                          ✅
+npm run lint                                               ✅
+npm run build                                              ✅
+npm run verify:api        130 assertions, real SIWE        ✅
+npm run shots:console     44 captures, 2 themes, 1440/390  ✅ no overflow, no console errors
+npm run check:states      wrong network, denied            ✅
+npm run check:overflow    landing at 390                   ✅
+```
+
+`scripts/console-shots.mjs` is new. The existing `shots.mjs` cannot reach the
+console because every screen is behind a wallet signature, so this one injects an
+EIP-6963 provider that signs with a Hardhat test key through a Playwright
+binding. The handshake, the signature and the session cookie are all real; only
+the wallet UI is absent.
+
+Six states were produced for real rather than mocked in a component: a tampered
+record (stored hash flipped in Supabase, then restored), a revoked identity
+(`revokeIdentity` on-chain, then reactivated), the chain stopped mid-session, a
+wallet reporting mainnet, a real mint, and a real role change with its guard
+reverting correctly for an invalid target.
+
+### Known gaps going into Phase 6
+
+- `verify-api.mjs` has automated coverage for `/api/applications` (12
+  assertions) but not for `POST /api/organizations` — creating an organisation is
+  a non-idempotent write with no clean rollback in the suite. Its guards (root
+  admin check, hash-match refusal) were verified live via browser instead.
+- The seeded demo data has accumulated extra assets from manual verification
+  runs across sessions. Cosmetic only — run `npm run seed:all` against a fresh
+  chain for a clean count before a demo.
 
 ## Phase 6 — Employee Portal ⬜
 
@@ -291,6 +400,10 @@ Recorded so they don't get relitigated, and so they can be defended on demo day.
 | Metadata from API first, IPFS later | `tokenURI` is just a string; swapping it never touches the contract |
 | Sepolia, never mainnet | real ETH is never needed for this project |
 | `typescript` pinned to 5.7.3 | TS 7 breaks ts-node on Node 25 — **do not unpin** |
+| No data-fetching library | four screens need "load, show a skeleton, show the failure, reload". `lib/use-resource.ts` is 40 lines, and a library whose main feature is caching would work against the rule that roles are never cached |
+| Read-only screens first, writes after review | a signed transaction is new surface area; the forms exist and state plainly that they are inert |
+| Root admin unioned into the member roster | the seat comes from `createOrganization`, not `addMember`, so the contract's own enumeration omits it |
+| Tri-state cells show default, override and result | a cell reading "Allowed" is indistinguishable from an unset cell whose default is already true, and only one of those survives a change to the defaults |
 
 ---
 

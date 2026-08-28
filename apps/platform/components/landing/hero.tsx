@@ -2,6 +2,8 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 
+import { GetStartedButton } from "@/components/wallet/get-started-button";
+
 import { WolfHead } from "./wolf-head";
 
 const META = [
@@ -72,12 +74,7 @@ export function Hero() {
             chain.
           </p>
 
-          <a
-            href="#how-it-works"
-            className="rounded-full bg-brand px-8 py-4 font-mono text-xs font-semibold uppercase tracking-[0.12em] text-brand-ink transition-colors duration-200 hover:bg-brand-hover"
-          >
-            Get started
-          </a>
+          <GetStartedButton />
         </motion.div>
 
         {/* Directly below the action, in flow. */}

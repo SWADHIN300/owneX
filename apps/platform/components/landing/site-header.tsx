@@ -1,5 +1,10 @@
 "use client";
 
+import Link from "next/link";
+
+import { CHAIN } from "@/lib/wallet";
+import { ConnectButton } from "@/components/wallet/connect-button";
+import { useWallet } from "@/components/wallet/wallet-provider";
 import { BrandLockup } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NetworkChip } from "@/components/ui";
@@ -20,6 +25,8 @@ const NAV = [
  * the alternative is the hamburger this is meant to avoid.
  */
 export function SiteHeader() {
+  const { chainId, session } = useWallet();
+
   return (
     <header className="sticky top-0 z-40 bar-surface">
       <div className="page-container flex h-16 items-center gap-5">
@@ -44,8 +51,8 @@ export function SiteHeader() {
 
         <div className="ms-auto flex shrink-0 items-center gap-2.5">
           <NetworkChip
-            chainId={31337}
-            expectedChainId={31337}
+            chainId={chainId ?? undefined}
+            expectedChainId={CHAIN.id}
             className="hidden lg:inline-flex"
           />
 
@@ -58,12 +65,18 @@ export function SiteHeader() {
             Docs
           </a>
 
-          <a
-            href="#how-it-works"
-            className="rounded-full bg-brand px-5 py-2.5 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-brand-ink transition-colors duration-200 hover:bg-brand-hover"
-          >
-            Get started
-          </a>
+          {/* Real sign-in, not a placeholder: runs the SIWE flow and routes into
+              the console once a session exists. */}
+          {session ? (
+            <Link
+              href="/dashboard"
+              className="rounded-full bg-brand px-5 py-2.5 font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.12em] text-brand-ink transition-colors duration-200 hover:bg-brand-hover"
+            >
+              Open console
+            </Link>
+          ) : (
+            <ConnectButton />
+          )}
         </div>
       </div>
 
@@ -81,7 +94,7 @@ export function SiteHeader() {
             </li>
           ))}
           <li className="shrink-0 ps-1">
-            <NetworkChip chainId={31337} expectedChainId={31337} />
+            <NetworkChip chainId={chainId ?? undefined} expectedChainId={CHAIN.id} />
           </li>
         </ul>
       </nav>

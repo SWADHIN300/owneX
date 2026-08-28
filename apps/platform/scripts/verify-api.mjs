@@ -356,6 +356,156 @@ async function main() {
     check("may read the audit trail", audit.status === 200);
   }
 
+  // ── members roster ────────────────────────────────────────────────
+  section("members roster — GET /api/members");
+  {
+    const anon = makeClient();
+    const noSession = await anon(`/api/members?orgId=${ORG_ID}`);
+    check("401 without a session", noSession.status === 401, noSession.body?.error ?? "");
+
+    const admin = makeClient();
+    await login(admin, ACCOUNTS.admin.pk);
+
+    const bad = await admin("/api/members?orgId=0");
+    check("400 on a non-positive orgId", bad.status === 400, bad.body?.error ?? "");
+
+    const missing = await admin("/api/members?orgId=9999");
+    check("403 on an organization the caller is not in", missing.status === 403, missing.body?.error ?? "");
+
+    const roster = await admin(`/api/members?orgId=${ORG_ID}`);
+    check("admin may read the roster", roster.status === 200);
+
+    const members = roster.body?.members ?? [];
+    // The seed adds five members; the root admin created the organization and is
+    // never in the contract's member list, so a correct roster has six.
+    check("roster has six entries including the root admin", members.length === 6, `got ${members.length}`);
+
+    const root = members.find((m) => m.isRootAdmin);
+    check("root admin is present and flagged", Boolean(root), root?.wallet ?? "");
+    check("root admin resolves to ADMIN", root?.role === "ADMIN", root?.role ?? "");
+    check(
+      "root admin has no stored membership record",
+      root?.storedRole === "NONE",
+      root?.storedRole ?? ""
+    );
+
+    const roles = members.map((m) => m.role);
+    check("all four roles appear", ["ADMIN", "MANAGER", "AUDITOR", "USER"].every((r) => roles.includes(r)), roles.join(","));
+
+    const timeBound = members.filter((m) => m.expiresAt !== null);
+    check("one membership is time-bound", timeBound.length === 1, `got ${timeBound.length}`);
+    check("the time-bound one has not lapsed yet", timeBound[0]?.expired === false);
+
+    check("admin sees profile detail", roster.body?.canSeeProfiles === true);
+    check(
+      "a named profile came back",
+      members.some((m) => m.profile?.displayName),
+      ""
+    );
+
+    // A plain USER is a member, so may see the roster, but not the off-chain
+    // detail — the same split the asset listing applies to serial numbers.
+    const user = makeClient();
+    await login(user, ACCOUNTS.employee.pk);
+    const asUser = await user(`/api/members?orgId=${ORG_ID}`);
+    check("a plain user may read the roster", asUser.status === 200);
+    check("profiles withheld from a plain user", asUser.body?.canSeeProfiles === false);
+    check(
+      "no display name leaked to a plain user",
+      (asUser.body?.members ?? []).every((m) => m.profile === null),
+      ""
+    );
+    check(
+      "wallets and roles are still returned",
+      (asUser.body?.members ?? []).every((m) => m.wallet && m.role),
+      ""
+    );
+  }
+
+  // ── permission matrix ─────────────────────────────────────────────
+  section("permission matrix — GET /api/roles/matrix");
+  {
+    const anon = makeClient();
+    const noSession = await anon(`/api/roles/matrix?orgId=${ORG_ID}`);
+    check("401 without a session", noSession.status === 401, noSession.body?.error ?? "");
+
+    const admin = makeClient();
+    await login(admin, ACCOUNTS.admin.pk);
+    const matrix = await admin(`/api/roles/matrix?orgId=${ORG_ID}`);
+    check("admin may read the matrix", matrix.status === 200);
+    check("organization reads as active", matrix.body?.organisationActive === true);
+    check("24 cells returned", (matrix.body?.cells ?? []).length === 24, `got ${(matrix.body?.cells ?? []).length}`);
+    check("admin is told it may edit", matrix.body?.canEdit === true);
+
+    const cell = (role, permission) =>
+      (matrix.body?.cells ?? []).find((c) => c.role === role && c.permission === permission);
+
+    // These are the defaults asserted by the contract test suite. If the matrix
+    // endpoint disagrees with them, it is the endpoint that is wrong.
+    check("ADMIN may mint by default", cell("ADMIN", "MINT_ASSETS")?.default === true);
+    check("MANAGER may transfer by default", cell("MANAGER", "TRANSFER_ASSETS")?.default === true);
+    check("MANAGER may not mint by default", cell("MANAGER", "MINT_ASSETS")?.default === false);
+    check("AUDITOR may view audit by default", cell("AUDITOR", "VIEW_AUDIT")?.default === true);
+    check("AUDITOR may not transfer by default", cell("AUDITOR", "TRANSFER_ASSETS")?.default === false);
+    check("USER holds nothing by default", ["MANAGE_MEMBERS", "ASSIGN_ROLES", "MINT_ASSETS", "TRANSFER_ASSETS", "VIEW_AUDIT", "MANAGE_APPS"].every((p) => cell("USER", p)?.default === false));
+
+    check(
+      "a freshly seeded org has no overrides",
+      (matrix.body?.cells ?? []).every((c) => c.override === "Unset"),
+      ""
+    );
+    check(
+      "effective matches default when nothing is overridden",
+      (matrix.body?.cells ?? []).every((c) => c.effective === c.default),
+      ""
+    );
+
+    const user = makeClient();
+    await login(user, ACCOUNTS.employee.pk);
+    const asUser = await user(`/api/roles/matrix?orgId=${ORG_ID}`);
+    check("a plain user may read the matrix", asUser.status === 200);
+    check("a plain user is not offered edit", asUser.body?.canEdit === false);
+  }
+
+  // ── connected applications ───────────────────────────────────────
+  section("connected applications — GET /api/applications");
+  {
+    const anon = makeClient();
+    const noSession = await anon(`/api/applications?orgId=${ORG_ID}`);
+    check("401 without a session", noSession.status === 401, noSession.body?.error ?? "");
+
+    const admin = makeClient();
+    await login(admin, ACCOUNTS.admin.pk);
+
+    const bad = await admin("/api/applications?orgId=0");
+    check("400 on a non-positive orgId", bad.status === 400, bad.body?.error ?? "");
+
+    const list = await admin(`/api/applications?orgId=${ORG_ID}`);
+    check("admin may read the application list", list.status === 200);
+    check("admin is told it may manage applications", list.body?.canManage === true);
+
+    const apps = list.body?.applications ?? [];
+    // seed-demo.ts registers the Employee Portal with all four roles allowed.
+    const portal = apps.find((a) => a.slug === "employee-portal");
+    check("the seeded Employee Portal is present", Boolean(portal), JSON.stringify(apps.map((a) => a.slug)));
+    check("it reads as registered on-chain", portal?.registered === true);
+    check("its on-chain key matches keccak256(slug)", portal?.appIdMatchesSlug === true);
+    check(
+      "all four roles were granted access by the seed",
+      portal && ["ADMIN", "MANAGER", "AUDITOR", "USER"].every((r) => portal.access[r] === true),
+      JSON.stringify(portal?.access)
+    );
+    check("the admin caller itself has access", portal?.callerHasAccess === true);
+
+    const user = makeClient();
+    await login(user, ACCOUNTS.employee.pk);
+    const asUser = await user(`/api/applications?orgId=${ORG_ID}`);
+    check("a plain user may read the list", asUser.status === 200);
+    check("a plain user is not offered management", asUser.body?.canManage === false);
+    const userPortal = (asUser.body?.applications ?? []).find((a) => a.slug === "employee-portal");
+    check("a plain user's role is also granted access", userPortal?.callerHasAccess === true);
+  }
+
   // ── role verification endpoint ────────────────────────────────────
   section("role verification endpoint — what partner apps call");
   {
