@@ -473,6 +473,83 @@ export function createAppDraft(input: AppDraftInput): Promise<AppDraftResult> {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Onboarding                                                                  */
+/* -------------------------------------------------------------------------- */
+
+export interface ProfileInput {
+  displayName: string;
+  jobTitle?: string;
+  department?: string;
+  email?: string;
+  phone?: string;
+}
+
+export interface ProfileSaveResult {
+  wallet: string;
+  identityHash: string;
+  /** True when the chain already holds this exact hash. */
+  anchored: boolean;
+  nextStep: { call: "registerIdentity" | "updateIdentityHash"; args: string[] } | null;
+  note: string;
+}
+
+/**
+ * Saves the encrypted profile and returns the hash to anchor. The response says
+ * which call is needed, because registering and updating are different functions
+ * and only the chain knows which applies.
+ */
+export function saveProfile(input: ProfileInput): Promise<ProfileSaveResult> {
+  return request<ProfileSaveResult>("/api/profile", {
+    method: "PUT",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface OrgInput {
+  name: string;
+  industry?: string;
+  website?: string;
+  description?: string;
+}
+
+export interface OrgPrepareResult {
+  metadataHash: string;
+  createArgs: { metadataHash: string };
+  rootAdmin: string;
+  note: string;
+}
+
+export function prepareOrganisation(input: OrgInput): Promise<OrgPrepareResult> {
+  return request<OrgPrepareResult>("/api/organizations", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface OrgConfirmResult {
+  orgId: number;
+  name: string;
+  rootAdmin: string;
+  metadataHash: string;
+  txHash: string;
+  verified: boolean;
+}
+
+/**
+ * Binds the record to the organisation that was just created. The server checks
+ * the caller is its root admin and that the record re-hashes to the on-chain
+ * anchor before writing anything.
+ */
+export function confirmOrganisation(
+  body: OrgInput & { orgId: number; txHash: string },
+): Promise<OrgConfirmResult> {
+  return request<OrgConfirmResult>("/api/organizations/confirm", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/* -------------------------------------------------------------------------- */
 /* Health                                                                      */
 /* -------------------------------------------------------------------------- */
 
