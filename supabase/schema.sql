@@ -171,6 +171,17 @@ create table if not exists nonces (
 create index if not exists nonces_wallet_idx on nonces (wallet_address);
 create index if not exists nonces_expiry_idx on nonces (expires_at);
 
+-- authorization_codes — short-lived, single-use Web2 handoff grants
+create table if not exists authorization_codes (
+  code text primary key,
+  wallet_address text not null,
+  app_slug text not null,
+  redirect_uri text not null,
+  expires_at timestamptz not null,
+  used_at timestamptz
+);
+create index if not exists authorization_codes_expiry_idx on authorization_codes (expires_at);
+
 comment on table nonces is
   'A nonce is valid only if unused and unexpired. Consumed atomically on verify.';
 
@@ -227,6 +238,7 @@ alter table applications   enable row level security;
 alter table audit_cache    enable row level security;
 alter table indexer_state  enable row level security;
 alter table nonces         enable row level security;
+alter table authorization_codes enable row level security;
 
 -- Belt and braces: revoke the default grants Supabase hands to anon.
 revoke all on profiles      from anon, authenticated;
@@ -236,3 +248,4 @@ revoke all on applications  from anon, authenticated;
 revoke all on audit_cache   from anon, authenticated;
 revoke all on indexer_state from anon, authenticated;
 revoke all on nonces        from anon, authenticated;
+revoke all on authorization_codes from anon, authenticated;

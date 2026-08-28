@@ -3,8 +3,8 @@
 Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
-**Last updated:** 2026-08-28 · Phase 8 documentation and deploy metadata prepared
-**Overall:** 5 of 8 phases done · Phase 6 portal and production deployment remain incomplete
+**Last updated:** 2026-08-29 · Phase 6 portal handoff and Sepolia E2E verified
+**Overall:** 6 of 8 phases done · 93 contract tests + 130 API assertions + 60 contrast checks + 21/21 portal E2E checks passing · Phase 7 polish and production submission remain
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -21,7 +21,7 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 | 3 | Backend: Supabase + SIWE auth + role API | ✅ done | `phase-3-backend.md` |
 | 4 | Design system + landing page | ✅ done | `phase-4-frontend.md` |
 | 5 | Platform dashboard (all pages) | ✅ done | — |
-| 6 | Employee Portal (second app) | ⬜ | — |
+| 6 | Employee Portal (second app) | ✅ done | `phase-6-employee-portal.md` |
 | 7 | Sepolia deploy + polish | 🟡 in progress | `phase-7-sepolia.md` |
 | 8 | Docs + demo video + submission | 🟡 partial | `architecture.md` · `evidence.md` · `demo-script.md` · `phase-8-submission.md` |
 
@@ -331,7 +331,7 @@ reverting correctly for an invalid target.
   runs across sessions. Cosmetic only — run `npm run seed:all` against a fresh
   chain for a clean count before a demo.
 
-## Phase 6 — Employee Portal ⬜
+## Phase 6 — Employee Portal ✅
 
 ```
 ⬜ Scaffold apps/employee-portal — ZERO ethers.js, ZERO contract code
