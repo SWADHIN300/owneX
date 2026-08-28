@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/cn";
 import { listAssets, type AssetSummary } from "@/lib/api";
@@ -35,6 +36,7 @@ const ALL = "__all__";
 
 export function AssetVault() {
   const { session, orgId, role, gate } = useConsoleScreen();
+  const router = useRouter();
 
   const load = React.useCallback(
     () => (orgId === null ? Promise.reject(new Error("No organisation")) : listAssets(orgId)),
@@ -52,14 +54,29 @@ export function AssetVault() {
   // with no explanation.
   const serialMasked = role !== "ADMIN" && role !== "MANAGER";
 
+  // Minting needs MINT_ASSETS, which by default only Admin holds. The action is
+  // hidden rather than disabled for everybody else: an empty vault already
+  // explains that an admin has to mint first, so a dead button would only repeat
+  // it less clearly.
+  const canMint = session?.permissions?.includes("MINT_ASSETS") ?? false;
+
+  const mintAction = canMint ? (
+    <Button variant="primary" onClick={() => router.push("/dashboard/assets/new")}>
+      Mint a certificate
+    </Button>
+  ) : null;
+
   const header = (
     <ScreenHeader
       kicker="Asset vault"
       title="Asset certificates"
       actions={
-        assets.data && assets.data.assets.length > 0 ? (
-          <ViewToggle view={view} onChange={setView} />
-        ) : undefined
+        <>
+          {assets.data && assets.data.assets.length > 0 ? (
+            <ViewToggle view={view} onChange={setView} />
+          ) : null}
+          {mintAction}
+        </>
       }
     >
       Each certificate is an ERC-721 token whose holder proves custody. Transfers
@@ -101,7 +118,10 @@ export function AssetVault() {
     return (
       <div>
         {header}
-        <EmptyPanel title="Nothing has been minted yet">
+        <EmptyPanel
+          title="Nothing has been minted yet"
+          action={mintAction ?? undefined}
+        >
           <p>
             Certificates appear here once an admin mints one and assigns it to a
             wallet. Nobody gets an asset by signing up, and there is no way to

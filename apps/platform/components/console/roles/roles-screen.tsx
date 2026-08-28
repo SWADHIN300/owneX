@@ -17,6 +17,7 @@ import {
   type Role,
 } from "@/components/ui";
 import { ApiErrorPanel, LoadingPanel } from "@/components/console/states";
+import { OverrideModal } from "./override-modal";
 import {
   ScreenHeader,
   useConsoleScreen,
@@ -57,6 +58,7 @@ export function RolesScreen() {
   const matrix = useResource(gate === null && orgId !== null ? load : null);
 
   const [selected, setSelected] = React.useState<MatrixCell | null>(null);
+  const [editing, setEditing] = React.useState<MatrixCell | null>(null);
 
   const header = (
     <ScreenHeader kicker="Roles and permissions" title="What each role may do">
@@ -193,10 +195,26 @@ export function RolesScreen() {
             cell={selected}
             canEdit={data.canEdit}
             permissions={data.permissions}
+            onEdit={() => setEditing(selected)}
           />
           <Legend />
         </div>
       </div>
+
+      {/* Keyed on the cell so switching cells remounts the dialog and its
+          selection starts from what that cell actually holds. */}
+      {editing && orgId !== null ? (
+        <OverrideModal
+          key={`${editing.role}:${editing.permission}`}
+          cell={editing}
+          orgId={orgId}
+          onClose={() => setEditing(null)}
+          onDone={() => {
+            matrix.reload();
+            setSelected(null);
+          }}
+        />
+      ) : null}
 
       <GlassCard padding="md" className="mt-4">
         <h2 className="label-xs mb-3 text-ink-faint">
@@ -308,10 +326,12 @@ function CellDetail({
   cell,
   canEdit,
   permissions,
+  onEdit,
 }: {
   cell: MatrixCell | null;
   canEdit: boolean;
   permissions: Array<{ key: string; label: string }>;
+  onEdit: () => void;
 }) {
   if (!cell) {
     return (
@@ -366,34 +386,14 @@ function CellDetail({
       <div className="mt-4 border-t border-border-soft pt-4">
         {canEdit ? (
           <>
-            <div
-              role="group"
-              aria-label="Override state"
-              className="flex flex-wrap gap-2"
-            >
-              {(["Unset", "Allowed", "Denied"] as OverrideState[]).map((state) => (
-                <Button
-                  key={state}
-                  size="sm"
-                  variant={cell.override === state ? "primary" : "secondary"}
-                  disabled
-                  title="Read-only for now: changing a cell is a signed transaction, and that path is not switched on yet."
-                >
-                  {state}
-                </Button>
-              ))}
-            </div>
-            <p
-              role="status"
-              className="mt-3 text-xs leading-relaxed text-ink-faint"
-            >
-              You hold Admin, so you would be allowed to change this. Writing it
-              is a{" "}
-              <code className="font-mono text-ink">
-                setPermission({cell.role}, {cell.permission}, …)
-              </code>{" "}
-              transaction signed in your wallet. That path is read-only until it
-              has been reviewed.
+            <Button size="sm" variant="primary" onClick={onEdit}>
+              Change this cell
+            </Button>
+            <p className="mt-3 text-xs leading-relaxed text-ink-faint">
+              You hold Admin, so you may change this. It is a{" "}
+              <code className="font-mono text-ink">setPermission</code> transaction
+              signed in your wallet, and it applies to everybody holding the role
+              from the block it lands in.
             </p>
           </>
         ) : (

@@ -217,6 +217,78 @@ export function getAssetMetadata(tokenId: number): Promise<AssetMetadata> {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Minting                                                                     */
+/* -------------------------------------------------------------------------- */
+
+export const ASSET_TYPES = [
+  "Laptop",
+  "Certificate",
+  "Software License",
+  "Equipment",
+  "Vehicle",
+  "Document",
+  "Other",
+] as const;
+
+export type AssetType = (typeof ASSET_TYPES)[number];
+
+export interface AssetDraftInput {
+  orgId: number;
+  name: string;
+  assetType: AssetType;
+  description?: string;
+  department?: string;
+  imageUrl?: string;
+  /** Encrypted at rest, hashed into the anchor, never written on-chain. */
+  serialNumber?: string;
+  invoiceReference?: string;
+}
+
+export interface AssetDraftResult {
+  assetId: string;
+  assetHash: string;
+  metadataUri: string;
+  mintArgs: { orgId: number; assetHash: string; metadataURI: string };
+  note: string;
+}
+
+/**
+ * Creates the off-chain record and returns the anchor to mint against. The
+ * server does not sign; the transaction is the user's.
+ */
+export function createAssetDraft(input: AssetDraftInput): Promise<AssetDraftResult> {
+  return request<AssetDraftResult>("/api/assets", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface AssetConfirmResult {
+  assetId: string;
+  tokenId: number;
+  txHash: string;
+  owner: string;
+  assignedTo: string;
+  assetHash: string;
+  verified: boolean;
+}
+
+/**
+ * Binds a draft to the token that was just minted. The server re-reads the token
+ * from the chain and refuses the binding unless the on-chain hash matches the
+ * draft, so a caller cannot attach their record to somebody else's token.
+ */
+export function confirmAsset(
+  assetId: string,
+  body: { tokenId: number; txHash: string },
+): Promise<AssetConfirmResult> {
+  return request<AssetConfirmResult>(`/api/assets/${assetId}/confirm`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+/* -------------------------------------------------------------------------- */
 /* Audit                                                                      */
 /* -------------------------------------------------------------------------- */
 

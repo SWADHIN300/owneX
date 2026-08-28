@@ -24,7 +24,11 @@ import {
   useConsoleScreen,
 } from "@/components/console/use-console-screen";
 import { MonoValue, explorerAddressUrl } from "@/components/console/copy-field";
-import { AddMemberModal, ChangeRoleModal } from "./member-actions";
+import {
+  AddMemberModal,
+  ChangeRoleModal,
+  RemoveMemberModal,
+} from "./member-actions";
 
 /**
  * Members.
@@ -50,8 +54,17 @@ export function MembersScreen() {
 
   const [addOpen, setAddOpen] = React.useState(false);
   const [changing, setChanging] = React.useState<OrgMember | null>(null);
+  const [removing, setRemoving] = React.useState<OrgMember | null>(null);
 
   const canManage = role === "ADMIN";
+
+  /**
+   * The contract reverts with `CannotTargetSelf` for your own membership, so the
+   * control is disabled rather than left to fail. Nobody removes or promotes
+   * themselves here — including a full admin.
+   */
+  const isSelf = (member: OrgMember) =>
+    session?.wallet.toLowerCase() === member.wallet.toLowerCase();
 
   const header = (
     <ScreenHeader
@@ -256,13 +269,37 @@ export function MembersScreen() {
 
                   {canManage ? (
                     <Td>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setChanging(member)}
-                      >
-                        Change role
-                      </Button>
+                      <div className="flex flex-wrap justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setChanging(member)}
+                          disabled={member.isRootAdmin}
+                          title={
+                            member.isRootAdmin
+                              ? "The root admin's seat cannot be changed here"
+                              : undefined
+                          }
+                        >
+                          Change role
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setRemoving(member)}
+                          disabled={member.isRootAdmin || isSelf(member)}
+                          title={
+                            member.isRootAdmin
+                              ? "The root admin cannot be removed"
+                              : isSelf(member)
+                                ? "You cannot remove your own membership"
+                                : undefined
+                          }
+                          className="text-danger hover:bg-danger/10"
+                        >
+                          Remove
+                        </Button>
+                      </div>
                     </Td>
                   ) : null}
                 </tr>
@@ -297,11 +334,19 @@ export function MembersScreen() {
             open={addOpen}
             onClose={() => setAddOpen(false)}
             orgId={orgId}
+            onDone={members.reload}
           />
           <ChangeRoleModal
             member={changing}
             onClose={() => setChanging(null)}
             orgId={orgId}
+            onDone={members.reload}
+          />
+          <RemoveMemberModal
+            member={removing}
+            onClose={() => setRemoving(null)}
+            orgId={orgId}
+            onDone={members.reload}
           />
         </>
       ) : null}
