@@ -3,8 +3,8 @@
 Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
-**Last updated:** 2026-08-28 · after Phase 5 write paths, applications, onboarding
-**Overall:** 5 of 8 phases done · 93 contract tests + 130 API assertions + 60 contrast checks passing · no blockers
+**Last updated:** 2026-08-28 · after Sepolia deployment and seed
+**Overall:** 5 of 8 phases done · Phase 7 deployment complete, verification and four-account demo pending
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -22,7 +22,7 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 | 4 | Design system + landing page | ✅ done | `phase-4-frontend.md` |
 | 5 | Platform dashboard (all pages) | ✅ done | — |
 | 6 | Employee Portal (second app) | ⬜ | — |
-| 7 | Sepolia deploy + polish | ⬜ | — |
+| 7 | Sepolia deploy + polish | 🟡 in progress | `phase-7-sepolia.md` |
 | 8 | Docs + demo video + submission | ⬜ | — |
 
 Supabase is connected and verified. Rotate the secret key before the demo — it was shared in a chat log during setup.
@@ -343,14 +343,16 @@ reverting correctly for an invalid target.
 This app containing no blockchain code is the demo point. It is what turns the
 project from "an NFT dashboard" into "a decentralized identity provider".
 
-## Phase 7 — Sepolia + polish ⬜
+## Phase 7 — Sepolia + polish 🟡
 
 ```
-⬜ Throwaway deployer wallet + faucet test ETH (free, no real ETH ever)
-⬜ Deploy 3 contracts to Sepolia, verify on Etherscan
-⬜ Point both apps at Sepolia addresses
+✅ Throwaway deployer wallet + faucet test ETH (free, no real ETH ever)
+✅ Deploy 3 contracts to Sepolia
+⬜ Verify on Etherscan (API connection timed out)
+✅ Point the platform at Sepolia addresses
+⬜ Point the employee portal at Sepolia addresses (portal is not present)
 ⬜ Run the full demo path with 4 separate MetaMask accounts
-⬜ Record every transaction hash
+✅ Record deployment and seed transaction evidence
 ⬜ Animation pass + prefers-reduced-motion
 ⬜ Optional: swap metadata to IPFS/Pinata (one-line tokenURI change)
 ```

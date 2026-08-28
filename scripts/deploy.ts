@@ -26,12 +26,16 @@ async function main() {
   const identityRegistry = await ethers.deployContract("IdentityRegistry", [deployer.address]);
   await identityRegistry.waitForDeployment();
   const identityRegistryAddress = await identityRegistry.getAddress();
+  const identityRegistryTx = identityRegistry.deploymentTransaction()?.hash ?? null;
   console.log(`IdentityRegistry  ${identityRegistryAddress}`);
+  if (identityRegistryTx) console.log(`  tx ${identityRegistryTx}`);
 
   const accessManager = await ethers.deployContract("OrgAccessManager", [identityRegistryAddress]);
   await accessManager.waitForDeployment();
   const accessManagerAddress = await accessManager.getAddress();
+  const accessManagerTx = accessManager.deploymentTransaction()?.hash ?? null;
   console.log(`OrgAccessManager  ${accessManagerAddress}`);
+  if (accessManagerTx) console.log(`  tx ${accessManagerTx}`);
 
   const assetNFT = await ethers.deployContract("AssetNFT", [
     identityRegistryAddress,
@@ -40,13 +44,18 @@ async function main() {
   ]);
   await assetNFT.waitForDeployment();
   const assetNFTAddress = await assetNFT.getAddress();
+  const assetNFTTx = assetNFT.deploymentTransaction()?.hash ?? null;
   console.log(`AssetNFT          ${assetNFTAddress}`);
+  if (assetNFTTx) console.log(`  tx ${assetNFTTx}`);
 
   // Let the platform admin wallet onboard identities without being the deployer.
+  let registrarTx: string | null = null;
   if (platformAdmin.toLowerCase() !== deployer.address.toLowerCase()) {
     const tx = await identityRegistry.setRegistrar(platformAdmin, true);
     await tx.wait();
+    registrarTx = tx.hash;
     console.log(`\nregistrar granted to ${platformAdmin}`);
+    console.log(`  tx ${registrarTx}`);
   }
 
   const record = {
@@ -60,6 +69,12 @@ async function main() {
       OrgAccessManager: accessManagerAddress,
       AssetNFT: assetNFTAddress,
     },
+    transactions: {
+      IdentityRegistry: identityRegistryTx,
+      OrgAccessManager: accessManagerTx,
+      AssetNFT: assetNFTTx,
+      registrarGrant: registrarTx,
+    },
   };
 
   const dir = path.join(__dirname, "..", "deployments");
@@ -72,6 +87,12 @@ async function main() {
   console.log(`IDENTITY_REGISTRY_ADDRESS=${identityRegistryAddress}`);
   console.log(`ORG_ACCESS_MANAGER_ADDRESS=${accessManagerAddress}`);
   console.log(`ASSET_NFT_ADDRESS=${assetNFTAddress}`);
+  if (network.name === "sepolia") {
+    console.log("\nSepolia Etherscan:");
+    console.log(`IdentityRegistry  https://sepolia.etherscan.io/address/${identityRegistryAddress}`);
+    console.log(`OrgAccessManager  https://sepolia.etherscan.io/address/${accessManagerAddress}`);
+    console.log(`AssetNFT          https://sepolia.etherscan.io/address/${assetNFTAddress}`);
+  }
 }
 
 main().catch((error) => {
