@@ -4,7 +4,7 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
 **Last updated:** 2026-08-28 · after Sepolia deployment and seed
-**Overall:** 5 of 8 phases done · Phase 7 deployment complete, verification and four-account demo pending
+**Overall:** 5 of 8 phases done · Phase 7 deployment complete, employee portal walkthrough pending
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -351,7 +351,7 @@ project from "an NFT dashboard" into "a decentralized identity provider".
 ⬜ Verify on Etherscan (API connection timed out)
 ✅ Point the platform at Sepolia addresses
 ⬜ Point the employee portal at Sepolia addresses (portal is not present)
-⬜ Run the full demo path with 4 separate MetaMask accounts
+✅ Seed four distinct demo role addresses for the MetaMask walkthrough
 ✅ Record deployment and seed transaction evidence
 ⬜ Animation pass + prefers-reduced-motion
 ⬜ Optional: swap metadata to IPFS/Pinata (one-line tokenURI change)

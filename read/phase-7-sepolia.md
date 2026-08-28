@@ -28,10 +28,12 @@ Explorer links:
 Portal application, role access, and three assets. `npm run seed:offchain`
 completed against Supabase using `deployments/sepolia.seed.json`.
 
-The supplied public address was used for every demo role. This is valid for
-the seed and makes the address the root admin, but it is not a four-account
-MetaMask demo. Separate manager, auditor, employee, and contractor addresses
-are required for that walkthrough.
+The demo now has four distinct role addresses: manager
+`0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266`, auditor
+`0x70997970C51812dc3A010C7d01b50e0d17dc79C8`, employee
+`0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC`, and contractor
+`0xBe98A6Ec74E921409F2d26E0Fd56b344E1be0FA6`. The deployer remains the
+platform and organization root admin.
 
 ## Verification and remaining work
 
@@ -46,7 +48,7 @@ are required for that walkthrough.
   and local Hardhat test keys. Run that diagnostic against a local config or
   parameterize it for Sepolia before treating it as a Sepolia QA result.
 - `apps/employee-portal` does not exist in this checkout, so the separate
-  employee-portal flow and four-account browser demo remain blocked.
+  employee-portal flow remains blocked. The four-account wallet seed is ready.
 
 ## Repeatable commands
 
