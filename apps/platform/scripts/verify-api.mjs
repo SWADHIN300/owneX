@@ -14,19 +14,47 @@
  *   node scripts/seed-offchain.mjs
  *   npm run dev               (this app)
  *
- * The private keys below are Hardhat's publicly-known test accounts. They hold
- * nothing but local test ETH and must never be used anywhere real.
+ * Local verification uses Hardhat's publicly-known test accounts. Sepolia
+ * verification reads the admin signing key from the local environment and uses
+ * the public demo role keys configured by the Sepolia seed.
  */
-import { Wallet } from "ethers";
+import { JsonRpcProvider, Wallet } from "ethers";
+import { config as loadEnv } from "dotenv";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+loadEnv({ path: resolve(__dirname, "../../../.env") });
+loadEnv({ path: resolve(__dirname, "../.env.local"), override: false });
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const ORG_ID = 1;
 
-const ACCOUNTS = {
-  admin: { pk: "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d", label: "Priya Sharma (root ADMIN)" },
-  manager: { pk: "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a", label: "Rahul Verma (MANAGER)" },
-  employee: { pk: "0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a", label: "Arjun Mehta (USER)" },
+function requiredPrivateKey(name) {
+  const value = process.env[name]?.trim();
+  if (!value) throw new Error(`Missing ${name}; required for Sepolia API verification.`);
+  return value;
+}
+
+const isSepolia =
+  process.env.CHAIN_ID === "11155111" ||
+  process.env.NEXT_PUBLIC_CHAIN_ID === "11155111" ||
+  /sepolia/i.test(process.env.RPC_URL ?? "");
+
+const LOCAL_ACCOUNTS = {
+  admin: { index: 1, label: "Priya Sharma (root ADMIN)" },
+  manager: { index: 2, label: "Rahul Verma (MANAGER)" },
+  employee: { index: 3, label: "Arjun Mehta (USER)" },
 };
+
+const SEPOLIA_ACCOUNTS = {
+  admin: { pk: process.env.VERIFY_ADMIN_PRIVATE_KEY?.trim() ?? requiredPrivateKey("DEPLOYER_PRIVATE_KEY"), label: "Sepolia Root Admin (ADMIN)" },
+  manager: { pk: requiredPrivateKey("VERIFY_MANAGER_PRIVATE_KEY"), label: "Rahul Verma (MANAGER)" },
+  employee: { pk: requiredPrivateKey("VERIFY_EMPLOYEE_PRIVATE_KEY"), label: "Arjun Mehta (USER)" },
+};
+
+const ACCOUNTS = isSepolia ? SEPOLIA_ACCOUNTS : LOCAL_ACCOUNTS;
+const localProvider = new JsonRpcProvider(process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8545");
 
 let passed = 0;
 let failed = 0;
@@ -69,12 +97,17 @@ function makeClient() {
 }
 
 /** Full SIWE handshake: request a challenge, sign it, exchange it for a session. */
-async function login(client, pk) {
-  const wallet = new Wallet(pk);
+async function signerFor(account) {
+  return "pk" in account ? new Wallet(account.pk) : localProvider.getSigner(account.index);
+}
+
+async function login(client, account) {
+  const wallet = await signerFor(account);
+  const address = await wallet.getAddress();
 
   const challenge = await client("/api/auth/nonce", {
     method: "POST",
-    body: JSON.stringify({ wallet: wallet.address }),
+    body: JSON.stringify({ wallet: address }),
   });
   if (challenge.status !== 200) {
     throw new Error(`nonce failed: ${challenge.status} ${JSON.stringify(challenge.body)}`);
@@ -87,7 +120,7 @@ async function login(client, pk) {
     body: JSON.stringify({ message: challenge.body.message, signature }),
   });
 
-  return { wallet, challenge: challenge.body, verified };
+  return { address, challenge: challenge.body, verified };
 }
 
 async function main() {
@@ -126,12 +159,14 @@ async function main() {
   section("SIWE — forged and replayed signatures must fail");
   {
     const client = makeClient();
-    const wallet = new Wallet(ACCOUNTS.employee.pk);
-    const other = new Wallet(ACCOUNTS.manager.pk);
+    const wallet = await signerFor(ACCOUNTS.employee);
+    const other = await signerFor(ACCOUNTS.manager);
+    const walletAddress = await wallet.getAddress();
+    const otherAddress = await other.getAddress();
 
     const challenge = await client("/api/auth/nonce", {
       method: "POST",
-      body: JSON.stringify({ wallet: wallet.address }),
+      body: JSON.stringify({ wallet: walletAddress }),
     });
     check("nonce issued", challenge.status === 200);
     check("nonce says login is gas-free", challenge.body?.gasRequired === false);
@@ -145,7 +180,7 @@ async function main() {
     check("wrong signer rejected", wrongRes.status === 401, wrongRes.body?.error ?? "");
 
     // Tampered message body.
-    const tampered = challenge.body.message.replace(wallet.address, other.address);
+    const tampered = challenge.body.message.replace(walletAddress, otherAddress);
     const tamperedSig = await other.signMessage(tampered);
     const tamperedRes = await client("/api/auth/verify", {
       method: "POST",
@@ -173,7 +208,7 @@ async function main() {
   section(`admin session — ${ACCOUNTS.admin.label}`);
   const adminClient = makeClient();
   {
-    const { wallet, verified } = await login(adminClient, ACCOUNTS.admin.pk);
+    const { address, verified } = await login(adminClient, ACCOUNTS.admin);
     check("login succeeded", verified.status === 200, verified.body?.error ?? "");
     check("identity active on-chain", verified.body?.identity?.active === true);
     check("routed to dashboard", verified.body?.next === "dashboard", verified.body?.next);
@@ -182,7 +217,7 @@ async function main() {
 
     const me = await adminClient("/api/identity/me");
     check("GET /api/identity/me", me.status === 200);
-    check("DID derived", me.body?.identity?.did === `did:ownex:${wallet.address}`);
+    check("DID derived", me.body?.identity?.did === `did:ownex:${address}`);
     check("record intact (hash anchor matches)", me.body?.identity?.recordIntact === true);
     check("root admin flagged", me.body?.memberships?.[0]?.isRootAdmin === true);
     const perms = me.body?.permissions ?? {};
@@ -316,7 +351,7 @@ async function main() {
   section(`least privilege — ${ACCOUNTS.employee.label}`);
   {
     const userClient = makeClient();
-    const { verified } = await login(userClient, ACCOUNTS.employee.pk);
+    const { verified } = await login(userClient, ACCOUNTS.employee);
     check("login succeeded", verified.status === 200);
     check("role is USER", verified.body?.memberships?.[0]?.role === "USER");
 
@@ -346,7 +381,7 @@ async function main() {
   section(`manager — ${ACCOUNTS.manager.label}`);
   {
     const mgr = makeClient();
-    await login(mgr, ACCOUNTS.manager.pk);
+    await login(mgr, ACCOUNTS.manager);
     const me = await mgr("/api/identity/me");
     const perms = me.body?.permissions ?? {};
     check("has TRANSFER_ASSETS", perms.TRANSFER_ASSETS === true);
@@ -364,7 +399,7 @@ async function main() {
     check("401 without a session", noSession.status === 401, noSession.body?.error ?? "");
 
     const admin = makeClient();
-    await login(admin, ACCOUNTS.admin.pk);
+    await login(admin, ACCOUNTS.admin);
 
     const bad = await admin("/api/members?orgId=0");
     check("400 on a non-positive orgId", bad.status === 400, bad.body?.error ?? "");
@@ -376,9 +411,11 @@ async function main() {
     check("admin may read the roster", roster.status === 200);
 
     const members = roster.body?.members ?? [];
-    // The seed adds five members; the root admin created the organization and is
-    // never in the contract's member list, so a correct roster has six.
-    check("roster has six entries including the root admin", members.length === 6, `got ${members.length}`);
+    // Local seed has a distinct root admin plus five members. The Sepolia seed
+    // often uses the deployer as both root and platform admin, so the total can
+    // be five. The invariant is that the root admin is present and all four
+    // documented roles are represented.
+    check("roster has at least five entries", members.length >= 5, `got ${members.length}`);
 
     const root = members.find((m) => m.isRootAdmin);
     check("root admin is present and flagged", Boolean(root), root?.wallet ?? "");
@@ -406,7 +443,7 @@ async function main() {
     // A plain USER is a member, so may see the roster, but not the off-chain
     // detail — the same split the asset listing applies to serial numbers.
     const user = makeClient();
-    await login(user, ACCOUNTS.employee.pk);
+    await login(user, ACCOUNTS.employee);
     const asUser = await user(`/api/members?orgId=${ORG_ID}`);
     check("a plain user may read the roster", asUser.status === 200);
     check("profiles withheld from a plain user", asUser.body?.canSeeProfiles === false);
@@ -430,7 +467,7 @@ async function main() {
     check("401 without a session", noSession.status === 401, noSession.body?.error ?? "");
 
     const admin = makeClient();
-    await login(admin, ACCOUNTS.admin.pk);
+    await login(admin, ACCOUNTS.admin);
     const matrix = await admin(`/api/roles/matrix?orgId=${ORG_ID}`);
     check("admin may read the matrix", matrix.status === 200);
     check("organization reads as active", matrix.body?.organisationActive === true);
@@ -461,7 +498,7 @@ async function main() {
     );
 
     const user = makeClient();
-    await login(user, ACCOUNTS.employee.pk);
+    await login(user, ACCOUNTS.employee);
     const asUser = await user(`/api/roles/matrix?orgId=${ORG_ID}`);
     check("a plain user may read the matrix", asUser.status === 200);
     check("a plain user is not offered edit", asUser.body?.canEdit === false);
@@ -475,7 +512,7 @@ async function main() {
     check("401 without a session", noSession.status === 401, noSession.body?.error ?? "");
 
     const admin = makeClient();
-    await login(admin, ACCOUNTS.admin.pk);
+    await login(admin, ACCOUNTS.admin);
 
     const bad = await admin("/api/applications?orgId=0");
     check("400 on a non-positive orgId", bad.status === 400, bad.body?.error ?? "");
@@ -498,7 +535,7 @@ async function main() {
     check("the admin caller itself has access", portal?.callerHasAccess === true);
 
     const user = makeClient();
-    await login(user, ACCOUNTS.employee.pk);
+    await login(user, ACCOUNTS.employee);
     const asUser = await user(`/api/applications?orgId=${ORG_ID}`);
     check("a plain user may read the list", asUser.status === 200);
     check("a plain user is not offered management", asUser.body?.canManage === false);
@@ -511,12 +548,12 @@ async function main() {
   {
     const anon = makeClient();
     const cases = [
-      { pk: ACCOUNTS.admin.pk, expect: "ADMIN" },
-      { pk: ACCOUNTS.manager.pk, expect: "MANAGER" },
-      { pk: ACCOUNTS.employee.pk, expect: "USER" },
+      { account: ACCOUNTS.admin, expect: "ADMIN" },
+      { account: ACCOUNTS.manager, expect: "MANAGER" },
+      { account: ACCOUNTS.employee, expect: "USER" },
     ];
     for (const c of cases) {
-      const address = new Wallet(c.pk).address;
+      const address = await (await signerFor(c.account)).getAddress();
       const res = await anon(`/api/roles/verify?wallet=${address}&orgId=${ORG_ID}&app=employee-portal`);
       check(`${c.expect} allowed, no session needed`, res.status === 200 && res.body?.role === c.expect && res.body?.allowed === true, res.body?.role ?? "");
       check(`${c.expect} app access granted`, res.body?.appAccess?.allowed === true);
@@ -525,7 +562,8 @@ async function main() {
     const stranger = await anon(`/api/roles/verify?wallet=0x0000000000000000000000000000000000000123&orgId=${ORG_ID}&app=employee-portal`);
     check("stranger denied", stranger.body?.allowed === false && stranger.body?.reason === "IDENTITY_NOT_REGISTERED", stranger.body?.reason ?? "");
 
-    const leak = JSON.stringify(stranger.body) + JSON.stringify((await anon(`/api/roles/verify?wallet=${new Wallet(ACCOUNTS.employee.pk).address}&orgId=${ORG_ID}`)).body);
+    const employeeAddress = await (await signerFor(ACCOUNTS.employee)).getAddress();
+    const leak = JSON.stringify(stranger.body) + JSON.stringify((await anon(`/api/roles/verify?wallet=${employeeAddress}&orgId=${ORG_ID}`)).body);
     check("no email exposed to partner apps", !leak.includes("@northwind.example"));
   }
 
@@ -533,7 +571,7 @@ async function main() {
   section("logout");
   {
     const client = makeClient();
-    await login(client, ACCOUNTS.admin.pk);
+    await login(client, ACCOUNTS.admin);
     check("session works before logout", (await client("/api/identity/me")).status === 200);
     check("POST /api/auth/logout", (await client("/api/auth/logout", { method: "POST" })).status === 200);
     check("session refused after logout", (await client("/api/identity/me")).status === 401);
