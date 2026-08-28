@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { CHAIN } from "@/lib/wallet";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import {
@@ -59,6 +61,12 @@ export default function IdentityPage() {
             {CHAIN.name} yet. Registration is what anchors your record, and until
             it happens there is nothing for a verifier to check against.
           </p>
+          <Link
+            href="/onboarding"
+            className="mt-3 inline-block font-mono text-[0.6875rem] font-semibold tracking-[0.12em] text-accent uppercase hover:underline"
+          >
+            Create an identity
+          </Link>
         </GlassCard>
       ) : null}
 

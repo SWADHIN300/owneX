@@ -335,11 +335,23 @@ export function RpcFailurePanel({
 /** Signed in, but a member of nothing. */
 export function NoOrganisationPanel() {
   return (
-    <StatePanel title="No organisation yet" glyph="empty">
+    <StatePanel
+      title="No organisation yet"
+      glyph="empty"
+      action={
+        <Link href="/onboarding">
+          <Button variant="secondary">Set one up</Button>
+        </Link>
+      }
+    >
       <p>
         This wallet holds a valid identity but is not a member of any
         organisation, so there is no roster, vault or history to show. An admin
         adds a member by wallet address; there is no invite email.
+      </p>
+      <p className="mt-3 text-xs text-ink-faint">
+        Waiting on somebody else? Give them this wallet address. Setting one up
+        yourself takes one transaction and makes you its root admin.
       </p>
     </StatePanel>
   );
