@@ -17,7 +17,11 @@
 
     "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
     "seed:local": "hardhat run scripts/seed-demo.ts --network localhost",
-    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "preflight:sepolia": "hardhat run scripts/preflight-sepolia.ts --network sepolia",
+    "deploy:sepolia": "npm run preflight:sepolia && hardhat run scripts/deploy.ts --network sepolia",
+    "seed:sepolia": "hardhat run scripts/seed-demo.ts --network sepolia",
+    "verify:sepolia": "hardhat run scripts/verify-sepolia.ts --network sepolia",
+    "config:platform:sepolia": "node scripts/configure-platform-sepolia.mjs",
     "export:abi": "hardhat run scripts/export-abi.ts",
 
     "seed:offchain": "npm --prefix apps/platform run seed:offchain",

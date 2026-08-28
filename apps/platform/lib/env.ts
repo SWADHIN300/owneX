@@ -32,6 +32,7 @@ const serverSchema = z.object({
 const publicSchema = z.object({
   NEXT_PUBLIC_CHAIN_ID: z.coerce.number().int().positive(),
   NEXT_PUBLIC_CHAIN_NAME: z.string().min(1),
+  NEXT_PUBLIC_RPC_URL: z.string().url().optional(),
   NEXT_PUBLIC_EXPLORER_URL: z.string().url().optional(),
   NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
   NEXT_PUBLIC_ORG_ACCESS_MANAGER_ADDRESS: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -59,6 +60,7 @@ export function serverEnv(): ServerEnv {
 export const publicEnv: PublicEnv = publicSchema.parse({
   NEXT_PUBLIC_CHAIN_ID: process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337,
   NEXT_PUBLIC_CHAIN_NAME: process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Hardhat Local",
+  NEXT_PUBLIC_RPC_URL: process.env.NEXT_PUBLIC_RPC_URL || undefined,
   NEXT_PUBLIC_EXPLORER_URL: process.env.NEXT_PUBLIC_EXPLORER_URL || undefined,
   NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS:
     process.env.NEXT_PUBLIC_IDENTITY_REGISTRY_ADDRESS ?? "0x5FbDB2315678afecb367f032d93F642f64180aa3",

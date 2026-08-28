@@ -19,7 +19,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Wallet, toUtf8String } from "ethers";
 
-const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
+const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const OUT = join(process.cwd(), "_shots-console");
 const rpcDown = process.argv.includes("--expect-rpc-down");
 
@@ -50,6 +50,7 @@ function init(address, chainIdHex) {
       info: { uuid: "u", name: "Test Wallet", icon: "", rdns: "dev.ownex.testwallet" },
       provider,
     });
+    try { Object.defineProperty(window, "ethereum", { value: provider, configurable: true }); } catch {}
     const announce = () => window.dispatchEvent(new CustomEvent("eip6963:announceProvider", { detail }));
     window.addEventListener("eip6963:requestProvider", announce);
     announce();
