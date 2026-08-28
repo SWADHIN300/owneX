@@ -3,8 +3,8 @@
 Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
-**Last updated:** 2026-08-28 · after Sepolia deployment and seed
-**Overall:** 5 of 8 phases done · Phase 7 deployment complete, employee portal walkthrough pending
+**Last updated:** 2026-08-28 · Phase 8 documentation and deploy metadata prepared
+**Overall:** 5 of 8 phases done · Phase 6 portal and production deployment remain incomplete
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -23,7 +23,7 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 | 5 | Platform dashboard (all pages) | ✅ done | — |
 | 6 | Employee Portal (second app) | ⬜ | — |
 | 7 | Sepolia deploy + polish | 🟡 in progress | `phase-7-sepolia.md` |
-| 8 | Docs + demo video + submission | ⬜ | — |
+| 8 | Docs + demo video + submission | 🟡 partial | `architecture.md` · `evidence.md` · `demo-script.md` · `phase-8-submission.md` |
 
 Supabase is connected and verified. Rotate the secret key before the demo — it was shared in a chat log during setup.
 
@@ -357,14 +357,16 @@ project from "an NFT dashboard" into "a decentralized identity provider".
 ⬜ Optional: swap metadata to IPFS/Pinata (one-line tokenURI change)
 ```
 
-## Phase 8 — Submission ⬜
+## Phase 8 — Submission 🟡
 
 ```
-⬜ Architecture + data-flow diagrams
-⬜ Deployed addresses, test output
-⬜ Demo video following the rehearsed path
-⬜ Limitations section (already drafted in README)
-⬜ Deploy both apps to Vercel
+✅ Architecture + data-flow diagrams committed as Mermaid source
+✅ Claim-to-test evidence document with Sepolia deployment evidence
+✅ Timed, honest demo script
+✅ README rewritten with deployment addresses, local setup, evidence, and limitations
+✅ Platform manifest and Open Graph image routes added for deployment
+⬜ Record the live demo: needs the missing Employee Portal and live revert/revocation transactions
+⬜ Deploy platform and Employee Portal: portal source and production host configuration are unavailable
 ```
 
 ---

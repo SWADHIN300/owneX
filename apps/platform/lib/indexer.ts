@@ -14,7 +14,9 @@ import { identityRegistry, accessManager, assetNFT, roleName, provider } from ".
  * Idempotent: `unique (tx_hash, log_index)` means re-running is safe.
  */
 
-const CHUNK = 2000; // block range per query — public RPCs reject wide ranges
+const DEFAULT_CHUNK = 2000; // block range per query; public RPCs reject wide ranges
+const SEPOLIA_CHUNK = 10;
+const RECORDED_SEPOLIA_START_BLOCK = 11585353;
 
 type Indexable = {
   name: "IdentityRegistry" | "OrgAccessManager" | "AssetNFT";
@@ -137,6 +139,16 @@ export type SyncResult = {
   resetDetected: boolean;
 };
 
+function chunkSize(chainId: number): number {
+  return chainId === 11155111 ? SEPOLIA_CHUNK : DEFAULT_CHUNK;
+}
+
+function startBlock(chainId: number): number {
+  const configured = Number(process.env.INDEXER_START_BLOCK);
+  if (Number.isInteger(configured) && configured >= 0) return configured;
+  return chainId === 11155111 ? RECORDED_SEPOLIA_START_BLOCK : 0;
+}
+
 /**
  * Detects that the chain behind the cache has been replaced.
  *
@@ -178,6 +190,8 @@ async function purgeContractCache(contractName: string, contractAddress: string)
 export async function syncEvents(options: { fromBlock?: number } = {}): Promise<SyncResult> {
   const env = serverEnv();
   const supabase = db();
+  const lowerBound = startBlock(env.CHAIN_ID);
+  const queryChunk = chunkSize(env.CHAIN_ID);
 
   const contracts: Indexable[] = [
     { name: "IdentityRegistry", contract: identityRegistry() },
@@ -194,8 +208,13 @@ export async function syncEvents(options: { fromBlock?: number } = {}): Promise<
   for (const { name, contract } of contracts) {
     const address = await contract.getAddress();
 
-    // Invalidate the cache if it describes a chain that no longer exists.
-    if (await detectChainReset(name)) {
+    // Explicit full rebuilds should not leave stale rows from an old local chain
+    // mixed into the current network's audit cache.
+    if (options.fromBlock !== undefined && options.fromBlock <= lowerBound) {
+      await purgeContractCache(name, address);
+      resetDetected = true;
+    } else if (await detectChainReset(name)) {
+      // Invalidate the cache if it describes a chain that no longer exists.
       await purgeContractCache(name, address);
       resetDetected = true;
     }
@@ -206,7 +225,7 @@ export async function syncEvents(options: { fromBlock?: number } = {}): Promise<
       .eq("contract_address", address)
       .maybeSingle();
 
-    let from = options.fromBlock ?? (state ? Number(state.last_block) + 1 : 0);
+    let from = Math.max(options.fromBlock ?? (state ? Number(state.last_block) + 1 : lowerBound), lowerBound);
     // A stored height beyond the chain tip also means the chain was replaced.
     if (from > latest + 1) {
       await purgeContractCache(name, address);
@@ -217,8 +236,8 @@ export async function syncEvents(options: { fromBlock?: number } = {}): Promise<
     overallFrom = Math.min(overallFrom, from);
     let indexedHere = 0;
 
-    for (let start = from; start <= latest; start += CHUNK) {
-      const end = Math.min(start + CHUNK - 1, latest);
+    for (let start = from; start <= latest; start += queryChunk) {
+      const end = Math.min(start + queryChunk - 1, latest);
       const logs = await contract.queryFilter("*", start, end);
 
       const rows = [];
