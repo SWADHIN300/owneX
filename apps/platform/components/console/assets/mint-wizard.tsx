@@ -92,7 +92,7 @@ export function MintWizard() {
   );
   const members = useResource(gate === null && orgId !== null ? loadMembers : null);
 
-  const canMint = session?.permissions?.includes("MINT_ASSETS") ?? false;
+  const canMint = session?.permissions?.MINT_ASSETS ?? false;
 
   const nameValid = draft.name.trim().length >= 2;
   const holderValid = ADDRESS.test(draft.assignedTo.trim());

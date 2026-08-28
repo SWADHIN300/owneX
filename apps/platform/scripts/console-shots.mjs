@@ -47,6 +47,8 @@ const ROUTES = [
   { name: "roles", path: "/dashboard/roles" },
   { name: "assets", path: "/dashboard/assets" },
   { name: "asset-1", path: "/dashboard/assets/1" },
+  { name: "mint", path: "/dashboard/assets/new" },
+  { name: "applications", path: "/dashboard/applications" },
   { name: "audit", path: "/dashboard/audit" },
 ];
 
@@ -219,7 +221,7 @@ for (const actor of ACTORS) {
       await page.getByRole("button", { name: "Connect wallet" }).click();
       await page.getByRole("button", { name: "Sign out" }).waitFor({ timeout: 30_000 });
 
-      const routes = actor.full ? ROUTES : ROUTES.filter((r) => r.name !== "asset-1");
+      const routes = actor.full ? ROUTES : ROUTES.filter((r) => r.name !== "asset-1" && r.name !== "mint");
 
       for (const route of routes) {
         await page.goto(`${BASE}${route.path}`, {

@@ -216,22 +216,43 @@ export function ChangeRoleModal({
   orgId: number;
   onDone: () => void;
 }) {
-  const [role, setRole] = React.useState<WritableRole>("USER");
-  const [expiry, setExpiry] = React.useState("");
-  const tx = useTransaction();
-  const today = useToday();
+  if (!member) return null;
+  // Keyed on the wallet, so opening the dialog for a different member remounts
+  // the form and its selection starts on what that member actually holds,
+  // rather than carrying over whatever the previous member's dialog left in
+  // state.
+  return (
+    <ChangeRoleForm
+      key={member.wallet}
+      member={member}
+      orgId={orgId}
+      onClose={onClose}
+      onDone={onDone}
+    />
+  );
+}
 
+function ChangeRoleForm({
+  member,
+  onClose,
+  orgId,
+  onDone,
+}: {
+  member: OrgMember;
+  onClose: () => void;
+  orgId: number;
+  onDone: () => void;
+}) {
   // The stored role is the honest starting point, because that is what the
   // transaction would replace. The root admin has no stored record — the seat
   // comes from creating the organisation — so fall back to what applies today.
-  const current =
-    member === null
-      ? "USER"
-      : member.storedRole !== "NONE"
-        ? member.storedRole
-        : member.role;
-  const lapsed =
-    member !== null && member.storedRole !== "NONE" && member.role !== member.storedRole;
+  const current = member.storedRole !== "NONE" ? member.storedRole : member.role;
+  const lapsed = member.storedRole !== "NONE" && member.role !== member.storedRole;
+
+  const [role, setRole] = React.useState<WritableRole>(current as WritableRole);
+  const [expiry, setExpiry] = React.useState("");
+  const tx = useTransaction();
+  const today = useToday();
 
   const expiryUnix = expiryToUnix(expiry);
   const expiryFuture = expiry === "" || expiry > today;
@@ -245,7 +266,6 @@ export function ChangeRoleModal({
   };
 
   const submit = () => {
-    if (!member) return;
     tx.run({
       send: ({ signer }) =>
         orgAccessManager(signer).assignRole(
@@ -259,9 +279,9 @@ export function ChangeRoleModal({
 
   return (
     <Modal
-      open={member !== null}
+      open
       onClose={close}
-      title={member ? `Change role for ${shortAddress(member.wallet)}` : "Change role"}
+      title={`Change role for ${shortAddress(member.wallet)}`}
       description="Roles are storage entries, never tokens. Nothing here can be sold or transferred to somebody else."
       footer={
         <>
@@ -273,7 +293,6 @@ export function ChangeRoleModal({
             onClick={submit}
             loading={tx.busy}
             disabled={
-              !member ||
               member.isRootAdmin ||
               !expiryFuture ||
               tx.stage === "done" ||
@@ -285,67 +304,65 @@ export function ChangeRoleModal({
         </>
       }
     >
-      {member ? (
-        <div className="flex flex-col gap-4">
-          <p className="flex flex-wrap items-center gap-2 text-sm text-ink-muted">
-            <span className="label-xs text-ink-faint">Currently</span>
-            <RoleChip role={current as Role} />
-            {lapsed ? (
-              <Badge tone="warn">Lapsed, so it resolves to {member.role} today</Badge>
-            ) : null}
+      <div className="flex flex-col gap-4">
+        <p className="flex flex-wrap items-center gap-2 text-sm text-ink-muted">
+          <span className="label-xs text-ink-faint">Currently</span>
+          <RoleChip role={current as Role} />
+          {lapsed ? (
+            <Badge tone="warn">Lapsed, so it resolves to {member.role} today</Badge>
+          ) : null}
+        </p>
+
+        {member.isRootAdmin ? (
+          <p
+            role="alert"
+            className="rounded-md border border-danger/45 bg-danger/10 p-3 text-xs leading-relaxed text-ink"
+          >
+            This wallet is the organisation&apos;s root admin, and{" "}
+            <code className="font-mono">assignRole</code> reverts with{" "}
+            <code className="font-mono">CannotModifyRootAdmin</code> for it. The
+            seat moves only through{" "}
+            <code className="font-mono">IdentityRegistry.transferOrgRootAdmin</code>
+            , which is what stops an organisation being orphaned.
           </p>
+        ) : (
+          <>
+            <Select
+              label="New role"
+              value={role}
+              onChange={(event) => setRole(event.target.value as WritableRole)}
+              disabled={tx.busy || tx.stage === "done"}
+              options={ROLE_OPTIONS}
+            />
+            <Input
+              label="Access expires"
+              type="date"
+              min={today || undefined}
+              value={expiry}
+              onChange={(event) => setExpiry(event.target.value)}
+              disabled={tx.busy || tx.stage === "done"}
+              error={expiryFuture ? undefined : "That date has already passed"}
+              hint="Empty means permanent. Setting a date here also replaces any existing expiry."
+            />
 
-          {member.isRootAdmin ? (
-            <p
-              role="alert"
-              className="rounded-md border border-danger/45 bg-danger/10 p-3 text-xs leading-relaxed text-ink"
-            >
-              This wallet is the organisation&apos;s root admin, and{" "}
-              <code className="font-mono">assignRole</code> reverts with{" "}
-              <code className="font-mono">CannotModifyRootAdmin</code> for it. The
-              seat moves only through{" "}
-              <code className="font-mono">IdentityRegistry.transferOrgRootAdmin</code>
-              , which is what stops an organisation being orphaned.
-            </p>
-          ) : (
-            <>
-              <Select
-                label="New role"
-                value={role}
-                onChange={(event) => setRole(event.target.value as WritableRole)}
-                disabled={tx.busy || tx.stage === "done"}
-                options={ROLE_OPTIONS}
+            <TransactionFailure failure={tx.failure} />
+            <TransactionRail stage={tx.stage} txHash={tx.txHash} />
+            <TransactionDismissed failure={tx.failure} />
+
+            {tx.stage === "idle" || tx.stage === "error" ? (
+              <GuardNote
+                call={`OrgAccessManager.assignRole(${orgId}, ${shortAddress(member.wallet)}, ROLE_${role}, ${expiryUnix})`}
+                permission="ASSIGN_ROLES"
+                guards={[
+                  "Reverts with CannotTargetSelf if you aim it at your own membership — nobody promotes themselves, including a full admin.",
+                  "Reverts with CannotModifyRootAdmin for the root admin's seat.",
+                  "Reverts if the target wallet's identity is not active.",
+                ]}
               />
-              <Input
-                label="Access expires"
-                type="date"
-                min={today || undefined}
-                value={expiry}
-                onChange={(event) => setExpiry(event.target.value)}
-                disabled={tx.busy || tx.stage === "done"}
-                error={expiryFuture ? undefined : "That date has already passed"}
-                hint="Empty means permanent. Setting a date here also replaces any existing expiry."
-              />
-
-              <TransactionFailure failure={tx.failure} />
-              <TransactionRail stage={tx.stage} txHash={tx.txHash} />
-              <TransactionDismissed failure={tx.failure} />
-
-              {tx.stage === "idle" || tx.stage === "error" ? (
-                <GuardNote
-                  call={`OrgAccessManager.assignRole(${orgId}, ${shortAddress(member.wallet)}, ROLE_${role}, ${expiryUnix})`}
-                  permission="ASSIGN_ROLES"
-                  guards={[
-                    "Reverts with CannotTargetSelf if you aim it at your own membership — nobody promotes themselves, including a full admin.",
-                    "Reverts with CannotModifyRootAdmin for the root admin's seat.",
-                    "Reverts if the target wallet's identity is not active.",
-                  ]}
-                />
-              ) : null}
-            </>
-          )}
-        </div>
-      ) : null}
+            ) : null}
+          </>
+        )}
+      </div>
     </Modal>
   );
 }

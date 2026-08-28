@@ -60,7 +60,7 @@ export function ApplicationsScreen() {
 
   const [registering, setRegistering] = React.useState(false);
 
-  const canManage = session?.permissions?.includes("MANAGE_APPS") ?? false;
+  const canManage = session?.permissions?.MANAGE_APPS ?? false;
 
   const header = (
     <ScreenHeader

@@ -178,8 +178,8 @@ function AdminOverview() {
   if (!session) return null;
 
   const { identity, memberships, permissions, assets, activeOrgId } = session;
-  const canMint = permissions?.includes("MINT_ASSETS") ?? false;
-  const canManageMembers = permissions?.includes("MANAGE_MEMBERS") ?? false;
+  const canMint = permissions?.MINT_ASSETS ?? false;
+  const canManageMembers = permissions?.MANAGE_MEMBERS ?? false;
 
   return (
     <div>
@@ -209,7 +209,14 @@ function AdminOverview() {
       <dl className="mb-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Stat label="Organisations" value={String(memberships.length)} />
         <Stat label="Assets held" value={String(assets.length)} />
-        <Stat label="Permissions" value={permissions ? String(permissions.length) : "0"} />
+        <Stat
+          label="Permissions"
+          value={
+            permissions
+              ? String(Object.values(permissions).filter(Boolean).length)
+              : "0"
+          }
+        />
         <Stat label="Network" value={CHAIN.name} mono />
       </dl>
 
@@ -296,17 +303,19 @@ function AdminOverview() {
             </ul>
           )}
 
-          {permissions && permissions.length > 0 ? (
+          {permissions && Object.values(permissions).some(Boolean) ? (
             <>
               <h3 className="label-xs mt-6 mb-3 text-ink-faint">
                 Permissions in org #{activeOrgId}
               </h3>
               <div className="flex flex-wrap gap-1.5">
-                {permissions.map((p) => (
-                  <Badge key={p} tone="brand" mono>
-                    {p}
-                  </Badge>
-                ))}
+                {Object.entries(permissions)
+                  .filter(([, granted]) => granted)
+                  .map(([p]) => (
+                    <Badge key={p} tone="brand" mono>
+                      {p}
+                    </Badge>
+                  ))}
               </div>
             </>
           ) : null}

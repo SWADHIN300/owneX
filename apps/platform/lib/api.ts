@@ -119,7 +119,12 @@ export interface Me {
   } | null;
   activeOrgId: number | null;
   memberships: Membership[];
-  permissions: string[] | null;
+  /**
+   * Every permission key mapped to whether the caller holds it in the active
+   * org, e.g. `{ MINT_ASSETS: false, VIEW_AUDIT: true, ... }`. Null when there
+   * is no active org to evaluate against.
+   */
+  permissions: Record<string, boolean> | null;
   assets: number[];
 }
 

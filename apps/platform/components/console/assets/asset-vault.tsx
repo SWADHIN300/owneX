@@ -58,7 +58,7 @@ export function AssetVault() {
   // hidden rather than disabled for everybody else: an empty vault already
   // explains that an admin has to mint first, so a dead button would only repeat
   // it less clearly.
-  const canMint = session?.permissions?.includes("MINT_ASSETS") ?? false;
+  const canMint = session?.permissions?.MINT_ASSETS ?? false;
 
   const mintAction = canMint ? (
     <Button variant="primary" onClick={() => router.push("/dashboard/assets/new")}>
