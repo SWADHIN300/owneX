@@ -36,6 +36,7 @@ const NAV: Array<{ label: string; href: string; soon?: boolean }> = [
   { label: "Members", href: "/dashboard/members" },
   { label: "Roles", href: "/dashboard/roles" },
   { label: "Assets", href: "/dashboard/assets" },
+  { label: "Applications", href: "/dashboard/applications" },
   { label: "Audit", href: "/dashboard/audit" },
 ];
 

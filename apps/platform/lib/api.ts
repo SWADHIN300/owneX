@@ -417,6 +417,62 @@ export function getPermissionMatrix(orgId: number): Promise<PermissionMatrix> {
 }
 
 /* -------------------------------------------------------------------------- */
+/* Applications                                                                */
+/* -------------------------------------------------------------------------- */
+
+export interface ConnectedApp {
+  slug: string;
+  appId: string;
+  name: string;
+  url: string;
+  description: string | null;
+  logoUrl: string | null;
+  /** False when a row exists but no registration does. A draft, not an integration. */
+  registered: boolean;
+  appIdMatchesSlug: boolean;
+  access: Record<string, boolean>;
+  callerHasAccess: boolean;
+}
+
+export interface AppList {
+  orgId: number;
+  count: number;
+  callerRole: string;
+  canManage: boolean;
+  applications: ConnectedApp[];
+}
+
+export function listApplications(orgId: number): Promise<AppList> {
+  return request<AppList>(`/api/applications?orgId=${orgId}`);
+}
+
+export interface AppDraftInput {
+  orgId: number;
+  slug: string;
+  name: string;
+  url: string;
+  description?: string;
+}
+
+export interface AppDraftResult {
+  slug: string;
+  appId: string;
+  metadataHash: string;
+  registerArgs: { orgId: number; appId: string; metadataHash: string };
+}
+
+/**
+ * Saves the application's display record and returns the two values
+ * `registerApplication` needs. As everywhere else, the server does not sign.
+ */
+export function createAppDraft(input: AppDraftInput): Promise<AppDraftResult> {
+  return request<AppDraftResult>("/api/applications", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+/* -------------------------------------------------------------------------- */
 /* Health                                                                      */
 /* -------------------------------------------------------------------------- */
 
