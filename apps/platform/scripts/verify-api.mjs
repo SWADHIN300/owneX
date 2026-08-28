@@ -467,6 +467,45 @@ async function main() {
     check("a plain user is not offered edit", asUser.body?.canEdit === false);
   }
 
+  // ── connected applications ───────────────────────────────────────
+  section("connected applications — GET /api/applications");
+  {
+    const anon = makeClient();
+    const noSession = await anon(`/api/applications?orgId=${ORG_ID}`);
+    check("401 without a session", noSession.status === 401, noSession.body?.error ?? "");
+
+    const admin = makeClient();
+    await login(admin, ACCOUNTS.admin.pk);
+
+    const bad = await admin("/api/applications?orgId=0");
+    check("400 on a non-positive orgId", bad.status === 400, bad.body?.error ?? "");
+
+    const list = await admin(`/api/applications?orgId=${ORG_ID}`);
+    check("admin may read the application list", list.status === 200);
+    check("admin is told it may manage applications", list.body?.canManage === true);
+
+    const apps = list.body?.applications ?? [];
+    // seed-demo.ts registers the Employee Portal with all four roles allowed.
+    const portal = apps.find((a) => a.slug === "employee-portal");
+    check("the seeded Employee Portal is present", Boolean(portal), JSON.stringify(apps.map((a) => a.slug)));
+    check("it reads as registered on-chain", portal?.registered === true);
+    check("its on-chain key matches keccak256(slug)", portal?.appIdMatchesSlug === true);
+    check(
+      "all four roles were granted access by the seed",
+      portal && ["ADMIN", "MANAGER", "AUDITOR", "USER"].every((r) => portal.access[r] === true),
+      JSON.stringify(portal?.access)
+    );
+    check("the admin caller itself has access", portal?.callerHasAccess === true);
+
+    const user = makeClient();
+    await login(user, ACCOUNTS.employee.pk);
+    const asUser = await user(`/api/applications?orgId=${ORG_ID}`);
+    check("a plain user may read the list", asUser.status === 200);
+    check("a plain user is not offered management", asUser.body?.canManage === false);
+    const userPortal = (asUser.body?.applications ?? []).find((a) => a.slug === "employee-portal");
+    check("a plain user's role is also granted access", userPortal?.callerHasAccess === true);
+  }
+
   // ── role verification endpoint ────────────────────────────────────
   section("role verification endpoint — what partner apps call");
   {

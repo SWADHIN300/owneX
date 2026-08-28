@@ -3,8 +3,8 @@
 Running log. Updated at the end of every phase. Newest phase at the top of the
 "Completed" section.
 
-**Last updated:** 2026-08-27 · after the Phase 5 console screens
-**Overall:** 4 of 8 phases done, Phase 5 mostly done · 93 contract tests + 118 API assertions + 60 contrast checks passing · no blockers
+**Last updated:** 2026-08-28 · after Phase 5 write paths, applications, onboarding
+**Overall:** 5 of 8 phases done · 93 contract tests + 130 API assertions + 60 contrast checks passing · no blockers
 
 > Detailed write-up for each finished phase lives beside this file:
 > `read/phase-1-contracts.md`, `read/phase-2-tests-and-deploy.md`, and so on.
@@ -20,7 +20,7 @@ Running log. Updated at the end of every phase. Newest phase at the top of the
 | 2 | Tests + local deploy + demo seed | ✅ done | `phase-2-tests-and-deploy.md` |
 | 3 | Backend: Supabase + SIWE auth + role API | ✅ done | `phase-3-backend.md` |
 | 4 | Design system + landing page | ✅ done | `phase-4-frontend.md` |
-| 5 | Platform dashboard (all pages) | 🟡 in progress | — |
+| 5 | Platform dashboard (all pages) | ✅ done | — |
 | 6 | Employee Portal (second app) | ⬜ | — |
 | 7 | Sepolia deploy + polish | ⬜ | — |
 | 8 | Docs + demo video + submission | ⬜ | — |
@@ -203,40 +203,42 @@ Built and verified. Detail in `phase-4-frontend.md`.
 Not wired yet: "Connect wallet" is presentational, and the network chip is
 hard-coded to 31337 until a provider is connected. Both land in Phase 5.
 
-## Phase 5 — Platform dashboard 🟡
+## Phase 5 — Platform dashboard ✅
 
 Done and verified against a live chain:
 
 ```
 ✅ Wallet connect + 4-stage signing rail (EIP-6963 discovery, real SIWE)
 ✅ App shell (sidebar, mobile nav strip, topbar, network chip)
-✅ Admin overview
+✅ Admin overview, adapts to a plain user's role on the same route
 ✅ My Identity
-✅ Members — table, chain-backed roster, invite/role-change designed (not wired)
-✅ Roles & Permissions — tri-state matrix read from the contract
+✅ Onboarding — Individual vs Organisation fork, both wired to real transactions
+✅ Members — roster, add/change-role/remove, all wired to real transactions
+✅ Roles & Permissions — tri-state matrix, override writes wired
+✅ Applications — connected apps, per-role access toggles wired
 ✅ Asset Vault — certificate grid, table alternative, filters
+✅ Mint wizard — off-chain vs on-chain split columns, wired end to end
 ✅ Asset detail — provenance, integrity check, transfer lock explained
 ✅ Audit Trail — filters, cursor paging, tx hash + block, chain re-sync
 ✅ Every required state: loading, empty, denied, wrong network, revoked, RPC fail
 ```
 
-Still to build before Phase 5 closes:
+Phase 5 is functionally complete. Nothing from the original scope remains
+unbuilt: Members, Roles, Applications, the mint wizard and onboarding are all
+built and wired to real transactions, and the overview adapts to the caller's
+role instead of a separate user dashboard.
 
-```
-⬜ Onboarding (Individual vs Organization fork)
-⬜ Applications (connected apps + integration rail)
-⬜ Mint NFT wizard (off-chain vs on-chain split columns)
-⬜ Write paths: add member, change role, set permission override
-⬜ User dashboard (simple, no admin controls, no jargon)
-```
+**Backend surface — five endpoints**, all following the patterns in
+`app/api/assets/route.ts` (`handler`, `requireMember`/`requirePermission`,
+`okNoStore`, zod):
 
-**New backend surface.** Two read endpoints, both gated on `requireMember`,
-both following the patterns in `app/api/assets/route.ts`:
-
-| Route | Returns |
+| Route | Purpose |
 |---|---|
 | `GET /api/members?orgId=` | roster with role, expiry, identity state, asset count |
 | `GET /api/roles/matrix?orgId=` | 24 cells: contract default, org override, effective |
+| `GET /api/applications?orgId=` | connected apps with on-chain registration + per-role access |
+| `POST /api/applications` | saves display record, returns `registerApplication` args |
+| `POST /api/organizations` + `/confirm` | prepares and binds a new org, same pattern as asset mint/confirm |
 
 Plus two chain helpers in `lib/chain/index.ts`: `readOrgMembers` and
 `readPermissionMatrix`.
@@ -247,14 +249,22 @@ The root admin becomes admin through `createOrganization`, which never touches
 who can never be removed. The seeded org therefore shows **six** members, not
 five.
 
-**Write paths are deliberately not wired.** Add member, change role and set
-permission override are designed and rendered — with the exact contract call, the
-permission it needs and the guards that would reject it — but the submit is inert
-until the signing path is agreed. A disabled control with a stated reason is
-better than a hidden one: it shows an admin the flow and cannot mislead anybody
-into thinking a change was saved.
+**Write paths are wired**, not merely designed. A shared four-stage rail
+(`components/console/tx/use-transaction.ts`) — prepare, sign, mine, record —
+backs every write in the console: mint, add/change-role/remove member, set
+permission override, register/toggle an application, and both onboarding forks.
+`lib/contracts.ts` is a client-safe ABI layer with human-readable fragments
+instead of the server's full JSON, and because it includes the custom error
+fragments, ethers decodes reverts by name — `lib/tx-errors.ts` turns
+`CannotTargetSelf` into "nobody promotes themselves, including a full admin"
+rather than "execution reverted".
 
-### Four bugs the verification found
+Proven against the live chain, not just rendered: a real `mintAsset` (tokens
+#4–#6, real tx hashes, confirmed and verified), a real `assignRole` that changed
+a seeded auditor to manager and back, and a real `addMember` that reverted
+`IdentityNotActive` for a wallet with no identity.
+
+### Six bugs the verification found
 
 None of these were visible from a passing build.
 
@@ -276,6 +286,15 @@ None of these were visible from a passing build.
 4. **"was NONE" beside the root admin's role.** The stored role is only worth
    showing when it disagrees with the effective one; the root admin has no stored
    record at all.
+5. **`session.permissions` was typed as `string[]`** when the route actually
+   returns `Record<PermissionKey, boolean>`. Every `.includes()` against it
+   crashed the page the moment a real sign-in reached a screen that checked a
+   permission — caught only by driving a real wallet through the app, not by
+   inspection. Fixed the type and every call site.
+6. **The change-role dialog always opened on "User"** regardless of the
+   member's actual role. Split into an inner form keyed on the wallet, so
+   switching targets remounts it and the selection starts on what that member
+   actually holds.
 
 ### Verification
 
@@ -284,9 +303,9 @@ npm run check:contrast    60 checks, both themes          ✅
 npm run typecheck                                          ✅
 npm run lint                                               ✅
 npm run build                                              ✅
-npm run verify:api        118 assertions, real SIWE        ✅
-npm run shots:console     34 captures, 2 themes, 1440/390  ✅ no overflow, no console errors
-npm run check:states      wrong network, denied, RPC down  ✅
+npm run verify:api        130 assertions, real SIWE        ✅
+npm run shots:console     44 captures, 2 themes, 1440/390  ✅ no overflow, no console errors
+npm run check:states      wrong network, denied            ✅
 npm run check:overflow    landing at 390                   ✅
 ```
 
@@ -296,10 +315,21 @@ EIP-6963 provider that signs with a Hardhat test key through a Playwright
 binding. The handshake, the signature and the session cookie are all real; only
 the wallet UI is absent.
 
-Four states were produced for real rather than mocked in a component: a tampered
+Six states were produced for real rather than mocked in a component: a tampered
 record (stored hash flipped in Supabase, then restored), a revoked identity
-(`revokeIdentity` on-chain, then reactivated), the chain stopped mid-session, and
-a wallet reporting mainnet.
+(`revokeIdentity` on-chain, then reactivated), the chain stopped mid-session, a
+wallet reporting mainnet, a real mint, and a real role change with its guard
+reverting correctly for an invalid target.
+
+### Known gaps going into Phase 6
+
+- `verify-api.mjs` has automated coverage for `/api/applications` (12
+  assertions) but not for `POST /api/organizations` — creating an organisation is
+  a non-idempotent write with no clean rollback in the suite. Its guards (root
+  admin check, hash-match refusal) were verified live via browser instead.
+- The seeded demo data has accumulated extra assets from manual verification
+  runs across sessions. Cosmetic only — run `npm run seed:all` against a fresh
+  chain for a clean count before a demo.
 
 ## Phase 6 — Employee Portal ⬜
 
