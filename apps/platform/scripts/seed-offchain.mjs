@@ -12,7 +12,7 @@
  * asset hashes are computed with the same canonical hashing, so the on-chain
  * anchors match and the "record intact" check passes.
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCipheriv, randomBytes } from "node:crypto";
@@ -21,6 +21,7 @@ import { id as keccakUtf8 } from "ethers";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
+const repoRoot = join(root, "..", "..");
 
 // ── env ───────────────────────────────────────────────────────────────
 const env = Object.fromEntries(
@@ -32,6 +33,11 @@ const env = Object.fromEntries(
       return [l.slice(0, i).trim(), l.slice(i + 1).trim()];
     })
 );
+
+const chainId = Number(env.CHAIN_ID ?? env.NEXT_PUBLIC_CHAIN_ID ?? 31337);
+const seedNetwork = env.OWNEX_SEED_NETWORK ?? (chainId === 11155111 ? "sepolia" : "localhost");
+const seedFile = join(repoRoot, "deployments", `${seedNetwork}.seed.json`);
+const seedReceipt = existsSync(seedFile) ? JSON.parse(readFileSync(seedFile, "utf8")) : null;
 
 const sb = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
@@ -78,10 +84,10 @@ const hashAsset = (r) =>
   );
 
 // ── demo data, mirroring scripts/seed-demo.ts ─────────────────────────
-const ORG_ID = 1;
+const ORG_ID = Number(seedReceipt?.orgId ?? 1);
 const ORIGIN = env.APP_ORIGIN ?? "http://localhost:3000";
 
-const PEOPLE = [
+const DEFAULT_PEOPLE = [
   { wallet: "0x69FD94d7e3F931F80B658872B70dF5CCa4263888", displayName: "Swadhin (Project Owner)", jobTitle: "Platform Owner", department: "Executive", email: "owner@northwind.example" },
   { wallet: "0x70997970C51812dc3A010C7d01b50e0d17dc79C8", displayName: "Priya Sharma", jobTitle: "IT Director", department: "IT", email: "priya@northwind.example" },
   { wallet: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC", displayName: "Rahul Verma", jobTitle: "Asset Manager", department: "Operations", email: "rahul@northwind.example" },
@@ -90,15 +96,28 @@ const PEOPLE = [
   { wallet: "0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc", displayName: "Kavya Rao", jobTitle: "Contract Designer", department: "Design", email: "kavya@northwind.example" },
 ];
 
-const ASSETS = [
+const DEFAULT_ASSETS = [
   { tokenId: 1, name: "Company Laptop 001", assetType: "Laptop", department: "Engineering", serialNumber: "NW-LAP-4471", invoiceReference: "INV-8823", description: "Company-issued laptop, Engineering department." },
   { tokenId: 2, name: "Professional Certificate — ISO 9001", assetType: "Certificate", department: "Compliance", serialNumber: "NW-CERT-0092", invoiceReference: null, description: "ISO 9001 quality management certification." },
   { tokenId: 3, name: "Design Suite License", assetType: "Software License", department: "Design", serialNumber: "NW-LIC-2210", invoiceReference: "INV-9104", description: "Annual design software licence seat." },
 ];
 
+const PEOPLE = seedReceipt?.people ?? DEFAULT_PEOPLE;
+const seedAssetsByName = new Map((seedReceipt?.assets ?? []).map((asset) => [asset.name, asset]));
+const ASSETS = DEFAULT_ASSETS.map((asset) => ({
+  ...asset,
+  tokenId: Number(seedAssetsByName.get(asset.name)?.tokenId ?? asset.tokenId),
+}));
+const APPLICATION = {
+  slug: seedReceipt?.application?.slug ?? "employee-portal",
+  name: seedReceipt?.application?.name ?? "Employee Portal",
+  url: seedReceipt?.application?.url ?? env.EMPLOYEE_PORTAL_URL ?? "http://localhost:3001",
+};
+
 async function main() {
   console.log("─".repeat(62));
   console.log(`seeding off-chain data → ${env.SUPABASE_URL}`);
+  if (seedReceipt) console.log(`using seed receipt      deployments/${seedNetwork}.seed.json`);
   console.log("─".repeat(62));
 
   // ── organization ────────────────────────────────────────────────
@@ -137,10 +156,10 @@ async function main() {
   const { error: appError } = await sb.from("applications").upsert(
     {
       org_id: ORG_ID,
-      app_slug: "employee-portal",
-      app_id: keccakUtf8("employee-portal"),
-      name: "Employee Portal",
-      url: "http://localhost:3001",
+      app_slug: APPLICATION.slug,
+      app_id: keccakUtf8(APPLICATION.slug),
+      name: APPLICATION.name,
+      url: APPLICATION.url,
       description: "Web2 staff portal that authenticates through OwneX and holds no blockchain code of its own.",
     },
     { onConflict: "org_id,app_slug" }

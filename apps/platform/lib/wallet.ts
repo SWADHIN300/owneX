@@ -96,10 +96,19 @@ export function legacyWallet(): DiscoveredWallet | null {
 }
 
 
+const DEFAULT_RPC_URLS: Record<number, string> = {
+  31337: "http://127.0.0.1:8545",
+  11155111: "https://rpc.sepolia.org",
+};
+
 export const CHAIN = {
   id: Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337),
   name: process.env.NEXT_PUBLIC_CHAIN_NAME ?? "Hardhat Local",
   explorer: process.env.NEXT_PUBLIC_EXPLORER_URL ?? null,
+  rpcUrl:
+    process.env.NEXT_PUBLIC_RPC_URL ??
+    DEFAULT_RPC_URLS[Number(process.env.NEXT_PUBLIC_CHAIN_ID ?? 31337)] ??
+    null,
 } as const;
 
 export function getInjectedProvider(): Eip1193Provider | null {
@@ -167,6 +176,9 @@ export async function switchChain(
   } catch (error) {
     if (walletErrorCode(error) !== WALLET_ERROR.UNRECOGNISED_CHAIN) throw error;
 
+    const rpcUrl = chainId === CHAIN.id ? CHAIN.rpcUrl : DEFAULT_RPC_URLS[chainId];
+    if (!rpcUrl) throw new Error(`No RPC URL configured for chain ${chainId}.`);
+
     await provider.request({
       method: "wallet_addEthereumChain",
       params: [
@@ -174,7 +186,7 @@ export async function switchChain(
           chainId: toHexChainId(chainId),
           chainName,
           nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-          rpcUrls: [chainId === 31337 ? "http://127.0.0.1:8545" : ""],
+          rpcUrls: [rpcUrl],
         },
       ],
     });
