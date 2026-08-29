@@ -49,6 +49,10 @@ export default async function AuthorizePage({
   const wallet = await sessionWallet();
 
   if (!wallet) {
+    // Build a returnTo URL so the homepage can redirect back here after wallet sign-in
+    const returnTo = `/authorize?app=${encodeURIComponent(appSlug)}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${encodeURIComponent(state)}`;
+    const signInHref = `/?returnTo=${encodeURIComponent(returnTo)}`;
+
     return (
       <main className="flex min-h-screen items-center justify-center p-4">
         <GlassCard padding="lg" className="w-full max-w-md text-center">
@@ -68,7 +72,7 @@ export default async function AuthorizePage({
             Sign in on owneX with your Web3 wallet to authorize <strong>Employee Portal</strong>.
           </p>
           <div className="mt-6">
-            <Link href="/" className="inline-block w-full">
+            <Link href={signInHref} className="inline-block w-full">
               <Button variant="primary" className="w-full">
                 Sign in with Wallet
               </Button>

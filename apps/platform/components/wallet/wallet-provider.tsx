@@ -273,6 +273,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setSession(await getMe());
         setSessionError(null);
         setStage("done");
+
+        // 5. If the URL carries a returnTo (set by /authorize when no session exists),
+        //    redirect there so the SSO flow resumes with full context. Only relative
+        //    paths are allowed to prevent open-redirect.
+        const returnTo = new URLSearchParams(window.location.search).get("returnTo");
+        if (returnTo && returnTo.startsWith("/")) {
+          window.location.href = returnTo;
+        }
       } catch (caught) {
         setError(describeSignInError(caught));
         setStage(isUserRejection(caught) ? "idle" : "error");
