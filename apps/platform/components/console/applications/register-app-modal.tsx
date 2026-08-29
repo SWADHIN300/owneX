@@ -120,7 +120,7 @@ export function RegisterAppModal({
         />
         <Input
           label="URL"
-          placeholder="http://localhost:3001"
+          placeholder="https://ownex-employee-portal.vercel.app"
           value={url}
           onChange={(event) => setUrl(event.target.value)}
           disabled={tx.busy || tx.stage === "done"}
