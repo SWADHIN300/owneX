@@ -3,30 +3,38 @@ import { session } from "@/lib/session";
 import { getPlatformOrigin } from "@/lib/config";
 
 async function verify(wallet: string) {
-  const origin = getPlatformOrigin();
-  const u = new URL("/api/roles/verify", origin);
-  u.searchParams.set("wallet", wallet);
-  u.searchParams.set("orgId", process.env.PORTAL_ORG_ID ?? "1");
-  u.searchParams.set("app", "employee-portal");
-  const r = await fetch(u, { cache: "no-store" });
-  return r.json();
+  try {
+    const origin = getPlatformOrigin();
+    const u = new URL("/api/roles/verify", origin);
+    u.searchParams.set("wallet", wallet);
+    u.searchParams.set("orgId", process.env.PORTAL_ORG_ID ?? "1");
+    u.searchParams.set("app", "employee-portal");
+    const r = await fetch(u, { cache: "no-store" });
+    if (!r.ok) return { allowed: false, reason: `HTTP_${r.status}` };
+    return await r.json();
+  } catch (err) {
+    return { allowed: false, reason: "VERIFICATION_UNAVAILABLE" };
+  }
 }
 
 export default async function Dashboard() {
   const s = await session();
   if (!s.wallet) redirect("/");
   const v = await verify(s.wallet);
-  if (!v.allowed) redirect(`/denied?reason=${v.reason}`);
+  if (!v.allowed) redirect(`/denied?reason=${encodeURIComponent(v.reason ?? "ACCESS_DENIED")}`);
+
+  const formattedDate = v.verifiedAt ? new Date(v.verifiedAt).toLocaleString() : "Just now";
+
   return (
     <main className="wrap">
       <div className="eyebrow">Northwind Industries</div>
       <h1>Welcome{v.displayName ? `, ${v.displayName}` : ""}.</h1>
       <p className="muted">Your employee workspace, with access checked live by owneX.</p>
       <div className="status">
-        <div className="pill">{v.role}</div>
+        <div className="pill">{v.role ?? "MEMBER"}</div>
         <h3>Live access check</h3>
         <p className="muted">
-          Verified at {new Date(v.verifiedAt).toLocaleString()} · Source: OwneX role verification
+          Verified at {formattedDate} · Source: OwneX role verification
         </p>
         <small>
           This app holds no keys and talks to no chain. A revocation or expiry appears on your next
