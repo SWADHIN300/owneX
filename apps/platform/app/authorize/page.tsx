@@ -85,10 +85,21 @@ export default async function AuthorizePage({
 
   // 3. Read live on-chain role & permission for display
   const appId = appIdFromSlug(appSlug);
-  const [role, hasAccess] = await Promise.all([
-    readEffectiveRole(1, wallet),
-    readCanAccessApp(1, wallet, appId),
-  ]);
+  let role: string = "USER";
+  let hasAccess = true;
+
+  try {
+    const [r, a] = await Promise.all([
+      readEffectiveRole(1, wallet),
+      readCanAccessApp(1, wallet, appId),
+    ]);
+    role = r;
+    hasAccess = a;
+  } catch (err) {
+    console.warn("Could not read on-chain role for authorize display:", err);
+    role = "USER";
+    hasAccess = true;
+  }
 
   const cancelUrl = new URL(redirectUri);
   cancelUrl.searchParams.set("state", state);

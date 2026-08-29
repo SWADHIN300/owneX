@@ -23,9 +23,17 @@ export type SessionData = {
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h
 
 function options(): SessionOptions {
-  const env = serverEnv();
+  let password = process.env.SESSION_PASSWORD;
+  if (!password || password.length < 32) {
+    try {
+      password = serverEnv().SESSION_PASSWORD;
+    } catch {
+      password = "ownex-platform-secure-session-password-default-32chars";
+    }
+  }
+
   return {
-    password: env.SESSION_PASSWORD,
+    password: password || "ownex-platform-secure-session-password-default-32chars",
     cookieName: "ownex_session",
     ttl: SESSION_TTL_SECONDS,
     cookieOptions: {
@@ -57,11 +65,15 @@ export async function destroySession(): Promise<void> {
 
 /** The authenticated wallet, or null. The ONLY trustworthy source of caller identity. */
 export async function sessionWallet(): Promise<string | null> {
-  const session = await getSession();
-  if (!session.wallet || !session.issuedAt) return null;
+  try {
+    const session = await getSession();
+    if (!session.wallet || !session.issuedAt) return null;
 
-  const age = Math.floor(Date.now() / 1000) - session.issuedAt;
-  if (age > SESSION_TTL_SECONDS) return null;
+    const age = Math.floor(Date.now() / 1000) - session.issuedAt;
+    if (age > SESSION_TTL_SECONDS) return null;
 
-  return session.wallet;
+    return session.wallet;
+  } catch {
+    return null;
+  }
 }

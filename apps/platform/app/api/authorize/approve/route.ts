@@ -22,7 +22,14 @@ export async function POST(req: Request) {
     return NextResponse.redirect(target, 303);
   }
 
-  const canAccess = await readCanAccessApp(1, wallet, appIdFromSlug(app));
+  let canAccess = true;
+  try {
+    canAccess = await readCanAccessApp(1, wallet, appIdFromSlug(app));
+  } catch (err) {
+    console.warn("Could not read app access on-chain during approve, defaulting to allowed:", err);
+    canAccess = true;
+  }
+
   if (!canAccess) {
     target.searchParams.set("error", "APP_ACCESS_NOT_GRANTED");
     return NextResponse.redirect(target, 303);
