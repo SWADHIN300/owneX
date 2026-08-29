@@ -19,13 +19,18 @@ export async function GET(request: Request) {
   if (!code) return deny("INVALID_CODE");
 
   const platform = process.env.PLATFORM_ORIGIN ?? "http://localhost:3000";
+  const defaultCallback = portal.includes("localhost")
+    ? "http://localhost:3001/callback"
+    : "https://ownex-employee-portal.vercel.app/callback";
+  const redirect_uri = process.env.PORTAL_CALLBACK_URL ?? defaultCallback;
+
   const response = await fetch(`${platform}/api/authorize/exchange`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({
       code,
       app: "employee-portal",
-      redirect_uri: process.env.PORTAL_CALLBACK_URL ?? "http://localhost:3001/callback",
+      redirect_uri,
       client_secret: process.env.PORTAL_CLIENT_SECRET ?? "employee-portal-local-secret",
     }),
     cache: "no-store",

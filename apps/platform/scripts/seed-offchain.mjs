@@ -111,7 +111,7 @@ const ASSETS = DEFAULT_ASSETS.map((asset) => ({
 const APPLICATION = {
   slug: seedReceipt?.application?.slug ?? "employee-portal",
   name: seedReceipt?.application?.name ?? "Employee Portal",
-  url: seedReceipt?.application?.url ?? env.EMPLOYEE_PORTAL_URL ?? "http://localhost:3001",
+  url: seedReceipt?.application?.url ?? env.EMPLOYEE_PORTAL_URL ?? "https://ownex-employee-portal.vercel.app",
 };
 
 async function main() {

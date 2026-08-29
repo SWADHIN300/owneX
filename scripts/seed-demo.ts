@@ -20,7 +20,7 @@ import * as path from "path";
  */
 
 const DEMO_WALLET = process.env.PLATFORM_ADMIN_ADDRESS ?? "0x69FD94d7e3F931F80B658872B70dF5CCa4263888";
-const EMPLOYEE_PORTAL_URL = process.env.EMPLOYEE_PORTAL_URL ?? "http://localhost:3001";
+const EMPLOYEE_PORTAL_URL = process.env.EMPLOYEE_PORTAL_URL ?? "https://ownex-employee-portal.vercel.app";
 
 type Json = string | number | boolean | null | Json[] | { [k: string]: Json | undefined };
 type RoleName = "ADMIN" | "MANAGER" | "AUDITOR" | "USER";
