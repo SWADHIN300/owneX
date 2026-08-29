@@ -1,12 +1,14 @@
 import {randomBytes} from "node:crypto"; import {db} from "./supabase";
 
 const LOCAL_PORTAL_REDIRECT = "http://localhost:3001/callback";
+const PROD_PORTAL_REDIRECT = "https://ownex-employee-portal.vercel.app/callback";
 
 /** The callback must be fixed on the server, never supplied by the client. */
 export function validRedirect(app:string,uri:string){
   if(app!=="employee-portal")return false;
   const configured=process.env.PORTAL_CALLBACK_URL;
   if(configured)return uri===configured;
+  if(uri===PROD_PORTAL_REDIRECT)return true;
   return process.env.NODE_ENV!=="production"&&uri===LOCAL_PORTAL_REDIRECT;
 }
 export async function issueGrant(g:{wallet:string;app:string;redirectUri:string}){const code=randomBytes(32).toString("hex");const {error}=await db().from("authorization_codes").insert({code,wallet_address:g.wallet.toLowerCase(),app_slug:g.app,redirect_uri:g.redirectUri,expires_at:new Date(Date.now()+120000).toISOString()});if(error)throw error;return code}
