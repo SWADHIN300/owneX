@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { session } from "@/lib/session";
+import { getPlatformOrigin } from "@/lib/config";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -18,7 +19,7 @@ export async function GET(request: Request) {
   if (error) return deny(reason ?? error);
   if (!code) return deny("INVALID_CODE");
 
-  const platform = process.env.PLATFORM_ORIGIN ?? "http://localhost:3000";
+  const platform = getPlatformOrigin();
   const defaultCallback = portal.includes("localhost")
     ? "http://localhost:3001/callback"
     : "https://ownex-employee-portal.vercel.app/callback";
@@ -49,3 +50,5 @@ export async function GET(request: Request) {
 
   return NextResponse.redirect(new URL("/dashboard", portal));
 }
+
+export const POST = GET;

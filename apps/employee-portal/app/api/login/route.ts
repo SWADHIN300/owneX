@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "node:crypto";
 import { session } from "@/lib/session";
+import { getPlatformOrigin } from "@/lib/config";
 
 export async function GET(request: Request) {
   const s = await session();
@@ -9,7 +10,7 @@ export async function GET(request: Request) {
   s.stateExpires = Date.now() + 300000;
   await s.save();
 
-  const platform = process.env.PLATFORM_ORIGIN ?? "http://localhost:3000";
+  const platform = getPlatformOrigin();
   const portalOrigin = new URL("/", request.url).origin;
   const defaultCallback = portalOrigin.includes("localhost")
     ? "http://localhost:3001/callback"
