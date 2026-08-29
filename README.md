@@ -322,7 +322,6 @@ in the repository.
 
 Before public deployment:
 
-- Rotate the Supabase service role key. It was exposed in a previous chat log.
 - Keep `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_PASSWORD`, `PII_ENCRYPTION_KEY`,
   `DEPLOYER_PRIVATE_KEY`, RPC credentials, and API keys out of client-visible
   variables.
