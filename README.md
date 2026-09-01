@@ -234,6 +234,43 @@ identity state, organization state, membership expiry, and app access.
 
 ## Run Locally
 
+### Docker (recommended)
+
+Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+After forking or cloning, this one command installs all root and app dependencies
+inside Docker, compiles and deploys the contracts to a local Hardhat chain, seeds
+the demo, and starts both apps—nothing is installed on the host:
+
+```bash
+git clone https://github.com/<your-user>/owneX.git
+cd owneX
+docker compose up
+```
+
+Open the platform at http://localhost:3000 and the employee portal at
+http://localhost:3001. The local JSON-RPC is http://localhost:8545 (chain ID
+`31337`). Stop the stack with `docker compose down`; include `-v` to also remove
+cached dependency volumes.
+
+The first run creates `.env`, `apps/platform/.env.local`, and
+`apps/employee-portal/.env.local` from their example files. Add real Supabase
+values to `apps/platform/.env.local` before using Supabase-backed features, then
+rerun the optional off-chain seed:
+
+```bash
+docker compose run --rm deployer npm run seed:offchain
+```
+
+Prebuilt production images are published on Docker Hub. From a clone with the
+same environment files, pull and run them with:
+
+```bash
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+### Without Docker
+
 Prerequisites:
 
 - Node.js and npm
