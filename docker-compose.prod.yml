@@ -1,8 +1,19 @@
+# OwneX — production images.
+#
+# Build locally:   docker compose -f docker-compose.prod.yml up --build -d
+# Or pull prebuilt: docker compose -f docker-compose.prod.yml pull && ... up -d
+#
+# Note: NEXT_PUBLIC_* values are compiled into the browser bundle at build time,
+# so the published images ship without them. If you need client-side Supabase or
+# contract addresses, add build args and rebuild rather than relying on env_file.
+#
+# For local development use docker-compose.yml instead.
+
 services:
   platform:
     build:
       context: ./apps/platform
-    image: ownex/platform:latest
+    image: swadhinraha18/ownex-platform:0.1.0
     ports:
       - "3000:3000"
     env_file:
@@ -12,7 +23,7 @@ services:
   employee-portal:
     build:
       context: ./apps/employee-portal
-    image: ownex/employee-portal:latest
+    image: swadhinraha18/ownex-employee-portal:0.1.0
     ports:
       - "3001:3001"
     env_file:
