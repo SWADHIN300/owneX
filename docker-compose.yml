@@ -1,0 +1,85 @@
+# OwneX — full local development stack.
+#
+#   git clone <your fork> && cd ownex
+#   docker compose up
+#
+# That single command installs every dependency (root Hardhat workspace + both
+# Next.js apps), compiles the contracts, starts a local chain, deploys + seeds
+# it, and serves both apps. Nothing is installed on your host machine.
+#
+#   Platform         http://localhost:3000
+#   Employee portal  http://localhost:3001
+#   Hardhat RPC      http://localhost:8545  (chain id 31337)
+#
+# For production images instead, use docker-compose.prod.yml.
+
+name: ownex
+
+# Shared definition: one image, one bind-mounted source tree, and named volumes
+# for node_modules so host and container installs never collide.
+x-dev: &dev
+  build:
+    context: .
+    dockerfile: Dockerfile.dev
+  image: ownex/dev:latest
+  working_dir: /app
+  environment:
+    LOCALHOST_RPC_URL: http://chain:8545
+    NEXT_TELEMETRY_DISABLED: "1"
+    WATCHPACK_POLLING: "true"
+  volumes:
+    - .:/app
+    - root_modules:/app/node_modules
+    - platform_modules:/app/apps/platform/node_modules
+    - portal_modules:/app/apps/employee-portal/node_modules
+
+services:
+  # 1. Creates .env files from the examples, installs all dependencies,
+  #    compiles the contracts and exports the ABIs. Exits when done.
+  install:
+    <<: *dev
+    command: bash docker/bootstrap.sh
+
+  # 2. Local Hardhat JSON-RPC node.
+  chain:
+    <<: *dev
+    command: npx hardhat node --hostname 0.0.0.0
+    ports:
+      - "8545:8545"
+    depends_on:
+      install:
+        condition: service_completed_successfully
+
+  # 3. Deploys and seeds the contracts on the local chain. Exits when done.
+  deployer:
+    <<: *dev
+    command: bash docker/deploy.sh
+    depends_on:
+      install:
+        condition: service_completed_successfully
+      chain:
+        condition: service_started
+
+  # 4. The two Next.js dev servers, with hot reload from your working tree.
+  platform:
+    <<: *dev
+    command: npm --prefix apps/platform run dev -- -H 0.0.0.0
+    ports:
+      - "3000:3000"
+    depends_on:
+      deployer:
+        condition: service_completed_successfully
+
+  portal:
+    <<: *dev
+    command: npm --prefix apps/employee-portal run dev -- -H 0.0.0.0
+    ports:
+      - "3001:3001"
+    depends_on:
+      deployer:
+        condition: service_completed_successfully
+
+volumes:
+  root_modules:
+  platform_modules:
+  portal_modules:

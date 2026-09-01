@@ -22,7 +22,8 @@ const config: HardhatUserConfig = {
       chainId: 31337,
     },
     localhost: {
-      url: "http://127.0.0.1:8545",
+      // Overridable so the Docker dev stack can reach the `chain` container.
+      url: process.env.LOCALHOST_RPC_URL ?? "http://127.0.0.1:8545",
       chainId: 31337,
     },
     sepolia: {

@@ -1,0 +1,9 @@
+node_modules
+.next
+.vercel
+.git
+.env
+.env.local
+*.tsbuildinfo
+Dockerfile
+.dockerignore

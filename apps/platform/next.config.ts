@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Self-contained server bundle for Docker images.
+  output: "standalone",
   // This app lives inside a monorepo whose root also has a lockfile (Hardhat).
   // Pinning the root stops Turbopack guessing and warning on every build.
   turbopack: {
