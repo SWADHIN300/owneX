@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { sessionWallet } from "@/lib/session";
-import { validRedirect } from "@/lib/authorize";
+import { inspectRedirect } from "@/lib/authorize";
+import { explainRejection } from "@/lib/callback-allowlist";
 import { readEffectiveRole, appIdFromSlug, readCanAccessApp } from "@/lib/chain";
 import { Badge, Button, GlassCard, Identicon, RoleChip, shortenAddress, type Role } from "@/components/ui";
 
@@ -14,8 +15,27 @@ export default async function AuthorizePage({
   const redirectUri = q.redirect_uri ?? "";
   const state = q.state ?? "";
 
-  // 1. Validate callback & application slug
-  if (!appSlug || !redirectUri || !state || !validRedirect(appSlug, redirectUri)) {
+  // 1. Validate callback & application slug.
+  //    Report *which* check failed: an opaque rejection here is impossible to debug
+  //    once deployed, because the request that fails is a redirect the user never sees.
+  const check = inspectRedirect(appSlug, redirectUri);
+  const detail = !appSlug
+    ? "The request did not include an application slug (?app=)."
+    : !state
+      ? "The request did not include an anti-forgery state value (?state=)."
+      : check.ok
+        ? null
+        : explainRejection(check.reason);
+
+  if (detail) {
+    const code = !appSlug
+      ? "MISSING_APP"
+      : !state
+        ? "MISSING_STATE"
+        : check.ok
+          ? "UNKNOWN"
+          : check.reason;
+
     return (
       <main className="flex min-h-screen items-center justify-center p-4">
         <GlassCard padding="lg" className="w-full max-w-md border-danger/40 text-center">
@@ -32,6 +52,11 @@ export default async function AuthorizePage({
           <h1 className="text-lg font-bold text-ink">Authorization Rejected</h1>
           <p className="mt-2 text-sm text-ink-muted leading-relaxed">
             The requested callback URI or application is not registered or allowed by owneX.
+          </p>
+          <p className="mt-3 rounded-lg border border-border-soft bg-surface/30 p-2.5 text-left text-[11px] leading-relaxed text-ink-faint">
+            <span className="font-mono font-semibold text-ink">{code}</span>
+            <br />
+            {detail}
           </p>
           <div className="mt-6">
             <Link href="/" className="inline-block w-full">
