@@ -3,7 +3,8 @@ import { sessionWallet } from "@/lib/session";
 import { inspectRedirect } from "@/lib/authorize";
 import { explainRejection } from "@/lib/callback-allowlist";
 import { readEffectiveRole, appIdFromSlug, readCanAccessApp } from "@/lib/chain";
-import { Badge, Button, GlassCard, Identicon, RoleChip, shortenAddress, type Role } from "@/components/ui";
+import { shortenAddress } from "@/lib/address";
+import { Badge, Button, GlassCard, Identicon, RoleChip, type Role } from "@/components/ui";
 
 export default async function AuthorizePage({
   searchParams,

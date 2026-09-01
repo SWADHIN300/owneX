@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/cn";
+import { shortenAddress } from "@/lib/address";
 
 import { Identicon } from "./identicon";
 
@@ -84,11 +85,8 @@ export interface WalletPillProps {
   className?: string;
 }
 
-/** Truncate to the first and last characters, which is how wallets are read. */
-export function shortenAddress(address: string, head = 6, tail = 4): string {
-  if (address.length <= head + tail + 2) return address;
-  return `${address.slice(0, head)}...${address.slice(-tail)}`;
-}
+/** Re-exported for existing client-side imports; defined in @/lib/address. */
+export { shortenAddress };
 
 export function WalletPill({
   address,
