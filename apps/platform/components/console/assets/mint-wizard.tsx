@@ -10,6 +10,7 @@ import {
   confirmAsset,
   createAssetDraft,
   listMembers,
+  uploadAssetImage,
   type AssetDraftResult,
   type AssetType,
 } from "@/lib/api";
@@ -56,7 +57,6 @@ interface Draft {
   assetType: AssetType;
   description: string;
   department: string;
-  imageUrl: string;
   serialNumber: string;
   invoiceReference: string;
   assignedTo: string;
@@ -67,19 +67,28 @@ const EMPTY: Draft = {
   assetType: "Laptop",
   description: "",
   department: "",
-  imageUrl: "",
   serialNumber: "",
   invoiceReference: "",
   assignedTo: "",
 };
 
 const ADDRESS = /^0x[a-fA-F0-9]{40}$/;
+const IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+
+function imageError(file: File | null): string | null {
+  if (!file) return null;
+  if (!IMAGE_TYPES.has(file.type)) return "Choose a PNG, JPEG, or WebP image";
+  if (file.size > MAX_IMAGE_BYTES) return "Image files must be 5 MB or smaller";
+  return null;
+}
 
 export function MintWizard() {
   const { session, orgId, role, gate } = useConsoleScreen();
   const router = useRouter();
 
   const [draft, setDraft] = React.useState<Draft>(EMPTY);
+  const [imageFile, setImageFile] = React.useState<File | null>(null);
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
 
@@ -96,24 +105,26 @@ export function MintWizard() {
 
   const nameValid = draft.name.trim().length >= 2;
   const holderValid = ADDRESS.test(draft.assignedTo.trim());
-  const imageValid = draft.imageUrl === "" || /^https?:\/\//.test(draft.imageUrl.trim());
-  const ready = nameValid && holderValid && imageValid && orgId !== null;
+  const selectedImageError = imageError(imageFile);
+  const ready = nameValid && holderValid && selectedImageError === null && orgId !== null;
 
   const tx = useTransaction<AssetDraftResult, { tokenId: number }>();
 
   const mint = () =>
     tx.run({
-      prepare: () =>
-        createAssetDraft({
+      prepare: async () => {
+        const imageUrl = imageFile ? (await uploadAssetImage(orgId as number, imageFile)).url : undefined;
+        return createAssetDraft({
           orgId: orgId as number,
           name: draft.name.trim(),
           assetType: draft.assetType,
           description: draft.description.trim() || undefined,
           department: draft.department.trim() || undefined,
-          imageUrl: draft.imageUrl.trim() || undefined,
+          imageUrl,
           serialNumber: draft.serialNumber.trim() || undefined,
           invoiceReference: draft.invoiceReference.trim() || undefined,
-        }),
+        });
+      },
       send: ({ signer, prepared }) =>
         assetNFT(signer).mintAsset(
           prepared.mintArgs.orgId,
@@ -213,6 +224,7 @@ export function MintWizard() {
               variant="secondary"
               onClick={() => {
                 setDraft(EMPTY);
+                setImageFile(null);
                 tx.reset();
               }}
             >
@@ -289,12 +301,16 @@ export function MintWizard() {
               hint="Hashed into the anchor, never published."
             />
             <Input
-              label="Photograph URL"
-              placeholder="https://…"
-              value={draft.imageUrl}
-              onChange={(e) => set("imageUrl", e.target.value)}
-              error={imageValid ? undefined : "Needs to be an http or https URL"}
-              hint="Optional. A certificate with no photograph gets a face drawn from its anchor."
+              label="Asset photograph"
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              onChange={(event) => setImageFile(event.target.files?.[0] ?? null)}
+              error={selectedImageError ?? undefined}
+              hint={
+                imageFile
+                  ? `${imageFile.name} — ${(imageFile.size / 1024 / 1024).toFixed(2)} MB. It will be public in the NFT metadata.`
+                  : "Optional. PNG, JPEG, or WebP up to 5 MB. The file uploads to OwneX storage, not a Google link."
+              }
             />
           </div>
         </GlassCard>
@@ -382,7 +398,7 @@ export function MintWizard() {
                       ? "A name is needed."
                       : !holderValid
                         ? "Choose who will hold the certificate."
-                        : "Fix the photograph URL."}
+                        : selectedImageError ?? "Choose a valid photograph."}
                   </p>
                 ) : (
                   <p className="mt-2 text-xs text-ink-faint">

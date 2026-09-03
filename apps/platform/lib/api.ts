@@ -26,11 +26,14 @@ export class ApiRequestError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = typeof FormData !== "undefined" && init?.body instanceof FormData;
   const response = await fetch(path, {
     ...init,
     credentials: "same-origin",
     headers: {
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
+      // Let the browser add multipart/form-data's boundary. Setting this header
+      // ourselves makes FormData uploads unreadable by the route handler.
+      ...(init?.body && !isFormData ? { "Content-Type": "application/json" } : {}),
       ...init?.headers,
     },
   });
@@ -247,6 +250,26 @@ export interface AssetDraftInput {
   /** Encrypted at rest, hashed into the anchor, never written on-chain. */
   serialNumber?: string;
   invoiceReference?: string;
+}
+
+export interface AssetImageUploadResult {
+  /** Public Supabase Storage URL, safe to use in public NFT metadata. */
+  url: string;
+  path: string;
+  contentType: "image/png" | "image/jpeg" | "image/webp";
+  size: number;
+}
+
+/**
+ * Uploads a public, display-safe image after verifying the caller can mint for
+ * the organization. Do not upload invoices, employee IDs, or any other private
+ * document: this bucket is public by design because the NFT metadata is public.
+ */
+export function uploadAssetImage(orgId: number, image: File): Promise<AssetImageUploadResult> {
+  const form = new FormData();
+  form.set("orgId", String(orgId));
+  form.set("image", image);
+  return request<AssetImageUploadResult>("/api/assets/image", { method: "POST", body: form });
 }
 
 export interface AssetDraftResult {

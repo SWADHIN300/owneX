@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 import {
   getAssetMetadata,
@@ -30,6 +31,23 @@ import {
   MonoValue,
   explorerAddressUrl,
 } from "@/components/console/copy-field";
+
+/** Mirrors the vault's trust boundary: arbitrary remote image URLs are not
+ * fetched by Next's image optimizer; only public objects from our asset bucket
+ * are rendered as photographs. */
+function isDisplayableAssetImage(url: string | null): url is string {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return (
+      parsed.protocol === "https:" &&
+      parsed.hostname.endsWith(".supabase.co") &&
+      parsed.pathname.startsWith("/storage/v1/object/public/asset-images/")
+    );
+  } catch {
+    return false;
+  }
+}
 
 /**
  * One asset certificate.
@@ -143,6 +161,20 @@ export function AssetDetail({ tokenId }: { tokenId: number }) {
           ERC-721
         </Badge>
       </p>
+
+      {isDisplayableAssetImage(asset.imageUrl) ? (
+        <GlassCard padding="md" className="mb-4">
+          <div className="relative h-56 overflow-hidden rounded-md bg-surface-2 sm:h-80">
+            <Image
+              src={asset.imageUrl}
+              alt={`Photograph of ${asset.name}`}
+              fill
+              sizes="(min-width: 1024px) 52rem, 100vw"
+              className="object-contain"
+            />
+          </div>
+        </GlassCard>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* ── Provenance ────────────────────────────────────────────── */}
