@@ -93,6 +93,23 @@ export function assetNFT(): Contract {
   return new Contract(serverEnv().ASSET_NFT_ADDRESS, AssetNFTAbi, provider());
 }
 
+/**
+ * Which AssetNFT this server is talking to.
+ *
+ * A token id means nothing on its own: it is unique only within one contract on
+ * one chain. Redeploy AssetNFT and ids start again at 1, so a database row
+ * holding `token_id = 5` from a previous deployment is describing a token that
+ * no longer exists. Stored bindings are therefore scoped to this pair.
+ */
+export type AssetDeployment = { chainId: number; contractAddress: string };
+
+export function assetDeployment(): AssetDeployment {
+  const env = serverEnv();
+  // Lowercased so equality is a plain string compare, matching how wallet
+  // addresses are stored elsewhere in this database.
+  return { chainId: env.CHAIN_ID, contractAddress: env.ASSET_NFT_ADDRESS.toLowerCase() };
+}
+
 // ── Authoritative reads ───────────────────────────────────────────────────
 
 export type IdentityState = {

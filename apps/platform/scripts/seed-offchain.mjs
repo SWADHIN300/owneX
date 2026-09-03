@@ -207,24 +207,58 @@ async function main() {
   console.log(`application    ${APPLICATION.name} (${APPLICATION.callbacks.length} callback URLs, no secret yet)`);
 
   // ── assets ──────────────────────────────────────────────────────
+  //
+  // Not an upsert on token_id: uniqueness is per deployment now
+  // (see supabase/migrations/0002), so there is no single-column constraint to
+  // conflict on. Read, then update or insert, scoped to this AssetNFT — a row
+  // holding the same id for a previous deployment is a different asset and must
+  // not be overwritten.
+  const ASSET_NFT = (env.ASSET_NFT_ADDRESS ?? "").toLowerCase();
+  const CHAIN = chainId;
+
   for (const a of ASSETS) {
     const assetHash = hashAsset({ ...a, orgId: ORG_ID });
-    const { error } = await sb.from("assets").upsert(
-      {
-        token_id: a.tokenId,
-        org_id: ORG_ID,
-        name: a.name,
-        description: a.description,
-        asset_type: a.assetType,
-        department: a.department,
-        serial_encrypted: encrypt(a.serialNumber),
-        invoice_encrypted: encrypt(a.invoiceReference),
-        asset_hash: assetHash,
-        metadata_uri: `${ORIGIN}/api/metadata/${a.tokenId}`,
-      },
-      { onConflict: "token_id" }
-    );
-    if (error) throw new Error(`assets #${a.tokenId}: ${error.message}`);
+    const record = {
+      token_id: a.tokenId,
+      org_id: ORG_ID,
+      name: a.name,
+      description: a.description,
+      asset_type: a.assetType,
+      department: a.department,
+      serial_encrypted: encrypt(a.serialNumber),
+      invoice_encrypted: encrypt(a.invoiceReference),
+      asset_hash: assetHash,
+      metadata_uri: `${ORIGIN}/api/metadata/${a.tokenId}`,
+    };
+    const stamped = ASSET_NFT ? { ...record, chain_id: CHAIN, contract_address: ASSET_NFT } : record;
+
+    const existing = await sb
+      .from("assets")
+      .select("id, contract_address")
+      .eq("token_id", a.tokenId)
+      .maybeSingle();
+
+    // Older databases have no contract_address column at all; fall back rather
+    // than making the seed depend on the migration.
+    const unstamped = existing.error && (existing.error.code === "42703" || existing.error.code === "PGRST204");
+    const row = unstamped
+      ? (await sb.from("assets").select("id").eq("token_id", a.tokenId).maybeSingle()).data
+      : existing.data;
+
+    const payload = unstamped ? record : stamped;
+    const mine = !row || !row.contract_address || row.contract_address === ASSET_NFT || unstamped;
+
+    if (row && mine) {
+      const { error } = await sb.from("assets").update(payload).eq("id", row.id);
+      if (error) throw new Error(`assets #${a.tokenId}: ${error.message}`);
+    } else if (!row) {
+      const { error } = await sb.from("assets").insert(payload);
+      if (error) throw new Error(`assets #${a.tokenId}: ${error.message}`);
+    } else {
+      console.log(`asset #${a.tokenId}       skipped — held by ${row.contract_address}`);
+      continue;
+    }
+
     console.log(`asset #${a.tokenId}       ${a.name}`);
   }
 

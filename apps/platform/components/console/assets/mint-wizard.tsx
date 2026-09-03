@@ -13,7 +13,7 @@ import {
   type AssetDraftResult,
   type AssetType,
 } from "@/lib/api";
-import { ASSET_NFT_ABI, assetNFT } from "@/lib/contracts";
+import { ADDRESSES, ASSET_NFT_ABI, assetNFT } from "@/lib/contracts";
 import { shortAddress } from "@/lib/wallet";
 import { useResource } from "@/lib/use-resource";
 import {
@@ -418,16 +418,25 @@ export function MintWizard() {
  * The confirm endpoint refuses a mismatched binding, but only because it checks —
  * relying on that as the safety net rather than the second line of defence would
  * be careless.
+ *
+ * Only logs emitted by AssetNFT itself are considered. A smart-account or
+ * delegation transaction carries dozens of logs from other contracts, and a
+ * matching topic signature elsewhere in that pile would otherwise be read as a
+ * mint.
  */
 function readMintedTokenId(
   receipt: { logs?: readonly unknown[] } | null,
 ): number | null {
   if (!receipt?.logs) return null;
   const iface = new Interface(ASSET_NFT_ABI);
+  const assetNFTAddress = ADDRESSES.assetNFT.toLowerCase();
 
   for (const log of receipt.logs) {
+    const entry = log as { address?: string; topics: readonly string[]; data: string };
+    if (assetNFTAddress && entry.address && entry.address.toLowerCase() !== assetNFTAddress) continue;
+
     try {
-      const parsed = iface.parseLog(log as { topics: readonly string[]; data: string });
+      const parsed = iface.parseLog(entry);
       if (parsed?.name === "AssetMinted") return Number(parsed.args[0]);
     } catch {
       // Logs from other contracts in the same transaction will not parse.

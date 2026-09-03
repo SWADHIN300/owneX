@@ -67,11 +67,19 @@ create table if not exists organizations (
 -- it can be passed into mintAsset(). `token_id` stays null until the mint is
 -- confirmed against the chain, at which point the row is bound to a real token.
 --
+-- A token id is meaningful only together with the contract that issued it: every
+-- AssetNFT deployment starts counting at 1, so uniqueness is per deployment, not
+-- global. Rows from an old deployment must not be able to block the new mint
+-- that legitimately owns the same id.
+--
 -- Ownership is NOT stored here. Ownership comes from AssetNFT.ownerOf().
 -- ───────────────────────────────────────────────────────────────────────
 create table if not exists assets (
   id                uuid primary key default gen_random_uuid(),
-  token_id          bigint unique,        -- null until minted and confirmed
+  token_id          bigint,               -- null until minted and confirmed
+  chain_id          bigint,               -- the chain the binding belongs to
+  contract_address  text                  -- the AssetNFT that issued token_id
+                    check (contract_address is null or contract_address ~ '^0x[0-9a-f]{40}$'),
   org_id            bigint not null references organizations (org_id) on delete cascade,
   name              text not null,
   description       text,
@@ -92,11 +100,21 @@ create index if not exists assets_org_idx on assets (org_id);
 create index if not exists assets_type_idx on assets (asset_type);
 create index if not exists assets_token_idx on assets (token_id);
 create index if not exists assets_pending_idx on assets (org_id) where token_id is null;
+create index if not exists assets_deployment_idx on assets (contract_address, org_id);
+
+-- One row per token per deployment. `coalesce` because a unique index treats
+-- NULLs as distinct, which would exempt unstamped rows from the guard.
+create unique index if not exists assets_token_per_deployment_key
+  on assets (coalesce(contract_address, 'unstamped'), token_id)
+  where token_id is not null;
 
 comment on column assets.asset_hash is
   'keccak256 of the confidential record. Must match AssetNFT.getAsset().assetHash.';
 comment on column assets.token_id is
-  'Null while the asset is a draft. Set only after the mint is verified on-chain.';
+  'Null while the asset is a draft. Set only after the mint is verified on-chain, and unique per (contract_address, token_id).';
+comment on column assets.contract_address is
+  'The AssetNFT that issued token_id, lowercase. Null on rows that predate deployment scoping.';
+
 
 -- ───────────────────────────────────────────────────────────────────────
 -- applications — third-party websites that authenticate through OwneX
