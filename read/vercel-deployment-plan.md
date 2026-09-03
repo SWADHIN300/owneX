@@ -24,9 +24,15 @@ Command `npm run build`.
 2. Introduce a server-only configured allowlist, initially containing the
    production portal callback and the explicitly selected preview callback.
    Preserve the localhost callback only for local development.
+   **Superseded:** callbacks are no longer configured by environment variable at
+   all. They are registered per application in `application_callbacks` and
+   matched exactly, so there is no allow-list to keep in step with a deployment.
 3. Remove production fallbacks for the portal client secret and portal session
-   password. Require `PORTAL_CLIENT_SECRET` and `PORTAL_SESSION_PASSWORD` in
-   Vercel instead.
+   password. **Done, and superseded:** there is no shared portal secret any
+   more. Each registered application has its own client id and its own client
+   secret, stored on the Platform only as a scrypt digest, rotatable and
+   revocable per integration. `PORTAL_SESSION_PASSWORD` is required with no
+   fallback.
 4. Add an `apps/employee-portal/.env.local.example` documenting the portal's
    required variables.
 5. Update the outdated README statements which say the Employee Portal is not
@@ -57,13 +63,21 @@ Critical paths: `apps/platform/lib/authorize.ts`,
      `NEXT_PUBLIC_APP_URL=https://platform.ownex.com`
    - the matching `NEXT_PUBLIC_CHAIN_*`, explorer, RPC, and contract-address
      values.
-4. In `ownex-employee-portal`, configure:
-   - `PLATFORM_ORIGIN=https://platform.ownex.com`
-   - `PORTAL_CALLBACK_URL=https://employees.ownex.com/callback`
-   - `PORTAL_CLIENT_SECRET` (a new high-entropy value, duplicated only in the
-     Platform project)
-   - `PORTAL_SESSION_PASSWORD` (a distinct 32+ character high-entropy value)
-   - `PORTAL_ORG_ID=1`, unless a different organization is intentionally used.
+4. In `ownex-employee-portal`, configure (see
+   `apps/employee-portal/.env.local.example` and
+   [`docs/sign-in-with-ownex.md`](../docs/sign-in-with-ownex.md)):
+   - `OWNEX_ORIGIN=https://platform.ownex.com`
+   - `OWNEX_REDIRECT_URI=https://employees.ownex.com/callback` — must match,
+     character for character, a callback URL registered for this application on
+     the Platform's Applications screen
+   - `OWNEX_CLIENT_ID` and `OWNEX_CLIENT_SECRET`, issued when an organization
+     admin registers the application. The secret is shown once; it exists in the
+     Portal project only, because the Platform stores only its hash. There is no
+     shared value to duplicate any more, and nothing to set on the Platform side.
+   - `OWNEX_ORG_ID=1`, unless a different organization is intentionally used
+   - `OWNEX_APP_SLUG=employee-portal`
+   - `PORTAL_SESSION_PASSWORD` (a distinct 32+ character high-entropy value; the
+     Portal refuses to start a session without it)
 5. Add every secret to Vercel's encrypted environment-variable store, never to
    Git. Rotate the Supabase service-role key before launch because the README
    records prior exposure.

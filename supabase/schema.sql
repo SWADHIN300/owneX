@@ -99,22 +99,83 @@ comment on column assets.token_id is
   'Null while the asset is a draft. Set only after the mint is verified on-chain.';
 
 -- ───────────────────────────────────────────────────────────────────────
--- applications — Web2 apps that authenticate through OwneX
--- appId on-chain is keccak256(slug); the slug and display detail live here.
+-- applications — third-party websites that authenticate through OwneX
+--
+-- "Sign in with OwneX" is an authorization-code flow, so each application has
+-- integration configuration: a public client id, the scrypt digest of a client
+-- secret, exact callback URLs, and a status. appId on-chain is keccak256(slug).
+--
+-- NOTHING HERE DECIDES WHO MAY SIGN IN. Whether a role may reach an application
+-- is read from OrgAccessManager.canAccessApp on every request. `allowed_roles`
+-- records only what an admin intended to grant, so the dashboard can point out
+-- an intention that was never signed on-chain.
 -- ───────────────────────────────────────────────────────────────────────
 create table if not exists applications (
-  org_id       bigint not null references organizations (org_id) on delete cascade,
-  app_slug     text not null,             -- e.g. 'employee-portal'
-  app_id       text not null,             -- keccak256(app_slug), the on-chain key
-  name         text not null,
-  url          text not null,
-  description  text,
-  logo_url     text,
-  created_at   timestamptz not null default now(),
-  primary key (org_id, app_slug)
+  org_id                    bigint not null references organizations (org_id) on delete cascade,
+  app_slug                  text not null,             -- e.g. 'employee-portal'
+  app_id                    text not null,             -- keccak256(app_slug), the on-chain key
+  name                      text not null,
+  url                       text not null,             -- homepage
+  description               text,
+  logo_url                  text,
+  client_id                 text,                      -- public, unguessable
+  client_secret_hash        text,                      -- scrypt$N$r$p$salt$digest — never plaintext
+  client_secret_updated_at  timestamptz,
+  allowed_roles             text[] not null default '{}'::text[],
+  status                    text not null default 'draft',
+  created_at                timestamptz not null default now(),
+  updated_at                timestamptz not null default now(),
+  primary key (org_id, app_slug),
+  constraint applications_status_check
+    check (status in ('draft', 'active', 'revoked')),
+  constraint applications_allowed_roles_check
+    check (allowed_roles <@ array['ADMIN','MANAGER','AUDITOR','USER']::text[]),
+  constraint applications_client_id_format_check
+    check (client_id is null or client_id ~ '^ownex_[0-9a-f]{32}$')
 );
 
 create index if not exists applications_app_id_idx on applications (app_id);
+create index if not exists applications_status_idx on applications (status);
+create unique index if not exists applications_client_id_key
+  on applications (client_id) where client_id is not null;
+
+comment on column applications.client_secret_hash is
+  'scrypt digest of the client secret. The plaintext is shown once at generation and never stored.';
+comment on column applications.status is
+  'draft | active | revoked. A revoked integration is refused at /authorize and at code exchange without deleting audit history.';
+
+-- ───────────────────────────────────────────────────────────────────────
+-- application_callbacks — the exact redirect URIs an application may use
+--
+-- A table rather than a JSON column so the constraints are real: absolute
+-- http(s), no query string or fragment, unique per application, cascading with
+-- the application. Exact-match lookup is an index hit. There are no wildcards
+-- anywhere in this system.
+-- ───────────────────────────────────────────────────────────────────────
+create table if not exists application_callbacks (
+  id            uuid primary key default gen_random_uuid(),
+  org_id        bigint not null,
+  app_slug      text   not null,
+  callback_url  text   not null,
+  created_at    timestamptz not null default now(),
+
+  constraint application_callbacks_app_fk
+    foreign key (org_id, app_slug)
+    references applications (org_id, app_slug)
+    on delete cascade,
+  constraint application_callbacks_unique
+    unique (org_id, app_slug, callback_url),
+  constraint application_callbacks_url_check
+    check (
+      callback_url ~ '^https?://[^\s?#]+$'
+      and length(callback_url) between 8 and 2048
+    )
+);
+
+create index if not exists application_callbacks_lookup_idx
+  on application_callbacks (org_id, app_slug);
+create index if not exists application_callbacks_url_idx
+  on application_callbacks (callback_url);
 
 -- ───────────────────────────────────────────────────────────────────────
 -- audit_cache — contract events, indexed for fast paging
@@ -171,19 +232,57 @@ create table if not exists nonces (
 create index if not exists nonces_wallet_idx on nonces (wallet_address);
 create index if not exists nonces_expiry_idx on nonces (expires_at);
 
--- authorization_codes — short-lived, single-use Web2 handoff grants
+-- ───────────────────────────────────────────────────────────────────────
+-- authorization_codes — single-use "Sign in with OwneX" grants
+--
+-- Random, 2-minute, one-time, and bound to the client id, organization and the
+-- exact redirect URI they were issued against. Consumption is a conditional
+-- UPDATE ... WHERE used_at IS NULL, so two simultaneous exchanges cannot both
+-- succeed and a replay gets nothing back.
+-- ───────────────────────────────────────────────────────────────────────
 create table if not exists authorization_codes (
-  code text primary key,
+  code           text primary key,
+  client_id      text not null,
+  app_slug       text not null,
+  org_id         bigint not null,
   wallet_address text not null,
-  app_slug text not null,
-  redirect_uri text not null,
-  expires_at timestamptz not null,
-  used_at timestamptz
+  redirect_uri   text not null,
+  issued_at      timestamptz not null default now(),
+  expires_at     timestamptz not null,
+  used_at        timestamptz,
+  constraint authorization_codes_wallet_check
+    check (wallet_address ~ '^0x[0-9a-f]{40}$'),
+  constraint authorization_codes_redirect_check
+    check (redirect_uri ~ '^https?://[^\s]+$')
 );
+
 create index if not exists authorization_codes_expiry_idx on authorization_codes (expires_at);
+create index if not exists authorization_codes_wallet_idx on authorization_codes (wallet_address);
+create index if not exists authorization_codes_pending_idx
+  on authorization_codes (client_id, expires_at) where used_at is null;
+
+comment on table authorization_codes is
+  'Single-use, 2-minute authorization codes. Consumed atomically so a replay cannot succeed.';
 
 comment on table nonces is
   'A nonce is valid only if unused and unexpired. Consumed atomically on verify.';
+
+-- ───────────────────────────────────────────────────────────────────────
+-- Housekeeping: drop grants that were never redeemed
+-- ───────────────────────────────────────────────────────────────────────
+create or replace function purge_expired_authorization_codes() returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  removed integer;
+begin
+  delete from authorization_codes where expires_at < now() - interval '1 hour';
+  get diagnostics removed = row_count;
+  return removed;
+end;
+$$;
 
 -- ───────────────────────────────────────────────────────────────────────
 -- Housekeeping: drop nonces that were never redeemed
@@ -227,6 +326,10 @@ drop trigger if exists assets_touch on assets;
 create trigger assets_touch before update on assets
   for each row execute function touch_updated_at();
 
+drop trigger if exists applications_touch on applications;
+create trigger applications_touch before update on applications
+  for each row execute function touch_updated_at();
+
 -- ═══════════════════════════════════════════════════════════════════════
 -- Row Level Security — on everywhere, permissive policies nowhere.
 -- Only the service role key (server side) can read or write.
@@ -235,6 +338,7 @@ alter table profiles       enable row level security;
 alter table organizations  enable row level security;
 alter table assets         enable row level security;
 alter table applications   enable row level security;
+alter table application_callbacks enable row level security;
 alter table audit_cache    enable row level security;
 alter table indexer_state  enable row level security;
 alter table nonces         enable row level security;
@@ -245,6 +349,7 @@ revoke all on profiles      from anon, authenticated;
 revoke all on organizations from anon, authenticated;
 revoke all on assets        from anon, authenticated;
 revoke all on applications  from anon, authenticated;
+revoke all on application_callbacks from anon, authenticated;
 revoke all on audit_cache   from anon, authenticated;
 revoke all on indexer_state from anon, authenticated;
 revoke all on nonces        from anon, authenticated;

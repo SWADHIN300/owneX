@@ -41,19 +41,30 @@ const isSepolia =
   process.env.NEXT_PUBLIC_CHAIN_ID === "11155111" ||
   /sepolia/i.test(process.env.RPC_URL ?? "");
 
+// Indices must match scripts/seed-demo.ts, which destructures the signers as
+//   [platform, admin, manager, auditor, employee, contractor]
+// so the USER is account 4. It was 3 here, which is the AUDITOR — that account
+// holds VIEW_AUDIT and no assets, so five "plain user" assertions failed against a
+// correctly seeded chain.
 const LOCAL_ACCOUNTS = {
   admin: { index: 1, label: "Priya Sharma (root ADMIN)" },
   manager: { index: 2, label: "Rahul Verma (MANAGER)" },
-  employee: { index: 3, label: "Arjun Mehta (USER)" },
+  auditor: { index: 3, label: "Neha Iyer (AUDITOR)" },
+  employee: { index: 4, label: "Arjun Mehta (USER)" },
 };
 
-const SEPOLIA_ACCOUNTS = {
-  admin: { pk: process.env.VERIFY_ADMIN_PRIVATE_KEY?.trim() ?? requiredPrivateKey("DEPLOYER_PRIVATE_KEY"), label: "Sepolia Root Admin (ADMIN)" },
-  manager: { pk: requiredPrivateKey("VERIFY_MANAGER_PRIVATE_KEY"), label: "Rahul Verma (MANAGER)" },
-  employee: { pk: requiredPrivateKey("VERIFY_EMPLOYEE_PRIVATE_KEY"), label: "Arjun Mehta (USER)" },
-};
+// Built lazily. Constructing this eagerly demanded the Sepolia demo private keys
+// even for a local run, which made `npm run verify:api` impossible against a
+// Hardhat node unless three unrelated variables happened to be set.
+function sepoliaAccounts() {
+  return {
+    admin: { pk: process.env.VERIFY_ADMIN_PRIVATE_KEY?.trim() ?? requiredPrivateKey("DEPLOYER_PRIVATE_KEY"), label: "Sepolia Root Admin (ADMIN)" },
+    manager: { pk: requiredPrivateKey("VERIFY_MANAGER_PRIVATE_KEY"), label: "Rahul Verma (MANAGER)" },
+    employee: { pk: requiredPrivateKey("VERIFY_EMPLOYEE_PRIVATE_KEY"), label: "Arjun Mehta (USER)" },
+  };
+}
 
-const ACCOUNTS = isSepolia ? SEPOLIA_ACCOUNTS : LOCAL_ACCOUNTS;
+const ACCOUNTS = isSepolia ? sepoliaAccounts() : LOCAL_ACCOUNTS;
 const localProvider = new JsonRpcProvider(process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8545");
 
 let passed = 0;
@@ -92,7 +103,7 @@ function makeClient() {
     } catch {
       body = text;
     }
-    return { status: res.status, body };
+    return { status: res.status, body, location: res.headers.get("location") };
   };
 }
 
@@ -534,6 +545,16 @@ async function main() {
     );
     check("the admin caller itself has access", portal?.callerHasAccess === true);
 
+    // Integration configuration is management detail, and the five-step pipeline
+    // has to agree with what /authorize actually enforces.
+    check("the integration pipeline is reported", Array.isArray(portal?.steps) && portal.steps.length === 5, JSON.stringify(portal?.stage));
+    check("the client id is visible to an admin", typeof portal?.clientId === "string" || portal?.clientId === null);
+    check("callback URLs are visible to an admin", Array.isArray(portal?.callbackUrls), JSON.stringify(portal?.callbackUrls));
+    check(
+      "the client secret itself is never returned by the list endpoint",
+      !JSON.stringify(list.body).includes("oxs_") && !JSON.stringify(list.body).includes("client_secret_hash"),
+    );
+
     const user = makeClient();
     await login(user, ACCOUNTS.employee);
     const asUser = await user(`/api/applications?orgId=${ORG_ID}`);
@@ -541,6 +562,44 @@ async function main() {
     check("a plain user is not offered management", asUser.body?.canManage === false);
     const userPortal = (asUser.body?.applications ?? []).find((a) => a.slug === "employee-portal");
     check("a plain user's role is also granted access", userPortal?.callerHasAccess === true);
+    check("a plain user is not shown the client id", userPortal?.clientId === null);
+    check("a plain user is not shown the callback URLs", userPortal?.callbackUrls === null);
+  }
+
+  // ── generic authorization endpoints ───────────────────────────────
+  section("Sign in with OwneX — request validation");
+  {
+    const anon = makeClient();
+
+    // The exchange must refuse every unknown client with one indistinguishable
+    // answer, and must never accept a guessed secret.
+    const badClient = await anon("/api/authorize/exchange", {
+      method: "POST",
+      body: JSON.stringify({
+        client_id: "ownex_00000000000000000000000000000000",
+        client_secret: "employee-portal-local-secret",
+        code: "x".repeat(43),
+        redirect_uri: "http://localhost:3001/callback",
+      }),
+    });
+    check("exchange refuses an unknown client with 401", badClient.status === 401, JSON.stringify(badClient.body));
+    check("exchange gives one uniform reason", badClient.body?.code === "INVALID_CLIENT", badClient.body?.code ?? "");
+
+    const malformed = await anon("/api/authorize/exchange", {
+      method: "POST",
+      body: JSON.stringify({ client_id: "short", client_secret: "s", code: "c", redirect_uri: "nope" }),
+    });
+    check("exchange validates its body with Zod", malformed.status === 400, JSON.stringify(malformed.body));
+
+    // /authorize refuses a request with no client_id, and renders rather than
+    // redirecting, because an unvalidated redirect_uri must never be honoured.
+    const noClient = await anon("/authorize?redirect_uri=https://evil.example.com/cb&state=abcdefgh&org_id=1");
+    check("/authorize refuses a request with no client_id", noClient.status === 200 || noClient.status === 400);
+    check(
+      "/authorize does not redirect to an unvalidated callback",
+      !(noClient.location ?? "").includes("evil.example.com"),
+      noClient.location ?? "(no redirect)",
+    );
   }
 
   // ── role verification endpoint ────────────────────────────────────
@@ -557,14 +616,26 @@ async function main() {
       const res = await anon(`/api/roles/verify?wallet=${address}&orgId=${ORG_ID}&app=employee-portal`);
       check(`${c.expect} allowed, no session needed`, res.status === 200 && res.body?.role === c.expect && res.body?.allowed === true, res.body?.role ?? "");
       check(`${c.expect} app access granted`, res.body?.appAccess?.allowed === true);
+      check(`${c.expect} answer names which credential answered it`, res.body?.authMode === "development-public", res.body?.authMode ?? "");
     }
 
     const stranger = await anon(`/api/roles/verify?wallet=0x0000000000000000000000000000000000000123&orgId=${ORG_ID}&app=employee-portal`);
     check("stranger denied", stranger.body?.allowed === false && stranger.body?.reason === "IDENTITY_NOT_REGISTERED", stranger.body?.reason ?? "");
 
+    const unknownApp = await anon(`/api/roles/verify?wallet=0x0000000000000000000000000000000000000123&orgId=${ORG_ID}&app=not-registered-anywhere`);
+    check("an unregistered application is refused", unknownApp.body?.allowed === false && unknownApp.body?.reason === "APPLICATION_NOT_REGISTERED", unknownApp.body?.reason ?? "");
+
     const employeeAddress = await (await signerFor(ACCOUNTS.employee)).getAddress();
-    const leak = JSON.stringify(stranger.body) + JSON.stringify((await anon(`/api/roles/verify?wallet=${employeeAddress}&orgId=${ORG_ID}`)).body);
+    const employee = await anon(`/api/roles/verify?wallet=${employeeAddress}&orgId=${ORG_ID}&app=employee-portal`);
+    const leak = JSON.stringify(stranger.body) + JSON.stringify(employee.body);
     check("no email exposed to partner apps", !leak.includes("@northwind.example"));
+    check(
+      "no private profile field exposed to partner apps",
+      ["displayName", "display_name", "jobTitle", "job_title", "department", "phone", "avatar"].every(
+        (field) => !leak.includes(field),
+      ),
+      leak.slice(0, 200),
+    );
   }
 
   // ── logout ────────────────────────────────────────────────────────

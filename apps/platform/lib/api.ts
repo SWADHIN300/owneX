@@ -422,8 +422,24 @@ export function getPermissionMatrix(orgId: number): Promise<PermissionMatrix> {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Applications                                                                */
+/* Applications — "Sign in with OwneX" integrations                            */
 /* -------------------------------------------------------------------------- */
+
+export type IntegrationStage = "draft" | "registered" | "callback" | "secret" | "active";
+
+export interface IntegrationStep {
+  key: IntegrationStage;
+  label: string;
+  done: boolean;
+  todo: string;
+}
+
+export interface IntegrationEndpoints {
+  authorizeUrl: string;
+  exchangeUrl: string;
+  verifyUrl: string;
+  envVars: Record<string, string>;
+}
 
 export interface ConnectedApp {
   slug: string;
@@ -432,11 +448,26 @@ export interface ConnectedApp {
   url: string;
   description: string | null;
   logoUrl: string | null;
-  /** False when a row exists but no registration does. A draft, not an integration. */
+  /** draft | active | revoked. Platform-side lifecycle, not an access decision. */
+  status: string;
+  /** False when a row exists but no on-chain registration does. A draft, not an integration. */
   registered: boolean;
   appIdMatchesSlug: boolean;
+  /** Which roles the CONTRACT currently admits. The authority. */
   access: Record<string, boolean>;
   callerHasAccess: boolean;
+  /** Which roles the admin said they wanted. Intent, not authority. */
+  intendedRoles: string[];
+  /** Intended roles that have no matching `setAppAccess` on-chain yet. */
+  rolesPendingOnChain: string[];
+  stage: IntegrationStage;
+  steps: IntegrationStep[];
+  /** Integration configuration — null for members without MANAGE_APPS. */
+  clientId: string | null;
+  callbackUrls: string[] | null;
+  hasClientSecret: boolean | null;
+  clientSecretUpdatedAt: string | null;
+  endpoints: IntegrationEndpoints | null;
 }
 
 export interface AppList {
@@ -451,30 +482,90 @@ export function listApplications(orgId: number): Promise<AppList> {
   return request<AppList>(`/api/applications?orgId=${orgId}`);
 }
 
-export interface AppDraftInput {
+export interface AppRegistrationInput {
   orgId: number;
   slug: string;
   name: string;
   url: string;
   description?: string;
+  logoUrl?: string;
+  /** Exact callback URLs. No wildcards; https outside localhost. */
+  callbackUrls: string[];
+  allowedRoles: string[];
 }
 
-export interface AppDraftResult {
+export interface AppRegistrationResult {
   slug: string;
   appId: string;
   metadataHash: string;
   registerArgs: { orgId: number; appId: string; metadataHash: string };
+  clientId: string;
+  /**
+   * The plaintext client secret, present ONLY in the response that created it.
+   * There is no endpoint that can return it again — rotation issues a new one.
+   */
+  clientSecret: string | null;
+  callbackUrls: string[];
+  allowedRoles: string[];
+  accessArgs: Array<{ orgId: number; appId: string; role: string }>;
+  endpoints: IntegrationEndpoints;
 }
 
 /**
- * Saves the application's display record and returns the two values
- * `registerApplication` needs. As everywhere else, the server does not sign.
+ * Saves the integration record, issues client credentials the first time, and
+ * returns the two values `registerApplication` needs. As everywhere else, the
+ * server does not sign.
  */
-export function createAppDraft(input: AppDraftInput): Promise<AppDraftResult> {
-  return request<AppDraftResult>("/api/applications", {
+export function registerApplication(input: AppRegistrationInput): Promise<AppRegistrationResult> {
+  return request<AppRegistrationResult>("/api/applications", {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export interface AppConfigPatch {
+  orgId: number;
+  name?: string;
+  url?: string;
+  description?: string | null;
+  logoUrl?: string | null;
+  callbackUrls?: string[];
+  allowedRoles?: string[];
+  status?: "active" | "revoked";
+}
+
+export interface AppConfigResult {
+  slug: string;
+  orgId: number;
+  status: string;
+  callbackUrls: string[];
+  allowedRoles: string[];
+  note?: string;
+}
+
+export function updateApplication(slug: string, patch: AppConfigPatch): Promise<AppConfigResult> {
+  return request<AppConfigResult>(`/api/applications/${encodeURIComponent(slug)}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
+export interface SecretRotationResult {
+  slug: string;
+  orgId: number;
+  clientId: string;
+  clientSecret: string;
+  rotatedAt: string;
+  endpoints: IntegrationEndpoints;
+  warning: string;
+}
+
+/** Issues a new secret and invalidates the old one immediately. Shown once. */
+export function rotateClientSecret(slug: string, orgId: number): Promise<SecretRotationResult> {
+  return request<SecretRotationResult>(
+    `/api/applications/${encodeURIComponent(slug)}/secret`,
+    { method: "POST", body: JSON.stringify({ orgId, confirm: true }) },
+  );
 }
 
 /* -------------------------------------------------------------------------- */

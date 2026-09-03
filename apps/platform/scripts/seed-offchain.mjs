@@ -24,8 +24,15 @@ const root = join(here, "..");
 const repoRoot = join(root, "..", "..");
 
 // ── env ───────────────────────────────────────────────────────────────
+// OWNEX_ENV_FILE lets this run against a different environment file — a staging
+// project, or the local verification stack — without editing or swapping
+// .env.local, which is the file a developer's real credentials live in.
+const envFile = process.env.OWNEX_ENV_FILE
+  ? join(process.cwd(), process.env.OWNEX_ENV_FILE)
+  : join(root, ".env.local");
+
 const env = Object.fromEntries(
-  readFileSync(join(root, ".env.local"), "utf8")
+  readFileSync(envFile, "utf8")
     .split(/\r?\n/)
     .filter((l) => l.trim() && !l.trim().startsWith("#") && l.includes("="))
     .map((l) => {
@@ -112,6 +119,13 @@ const APPLICATION = {
   slug: seedReceipt?.application?.slug ?? "employee-portal",
   name: seedReceipt?.application?.name ?? "Employee Portal",
   url: seedReceipt?.application?.url ?? env.EMPLOYEE_PORTAL_URL ?? "https://ownex-employee-portal.vercel.app",
+  // Exact callback URLs. The local one first, because that is what the demo runs.
+  // No wildcards exist anywhere in this system: a callback is accepted only if it
+  // matches one of these after canonicalisation.
+  callbacks: (env.EMPLOYEE_PORTAL_CALLBACKS ?? "http://localhost:3001/callback,https://ownex-employee-portal.vercel.app/callback")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean),
 };
 
 async function main() {
@@ -161,11 +175,36 @@ async function main() {
       name: APPLICATION.name,
       url: APPLICATION.url,
       description: "Web2 staff portal that authenticates through OwneX and holds no blockchain code of its own.",
+      allowed_roles: ["ADMIN", "MANAGER", "AUDITOR", "USER"],
+      status: "active",
+      // Deliberately no client_id and no client_secret_hash. Credentials are
+      // issued by an admin on /dashboard/applications, or by
+      // `npm run provision:app`, because the plaintext secret must be shown to a
+      // human exactly once and a seed script has nobody to show it to.
     },
     { onConflict: "org_id,app_slug" }
   );
   if (appError) throw new Error(`applications: ${appError.message}`);
-  console.log("application    Employee Portal");
+
+  // Callbacks are replaced rather than merged: one the operator removed from the
+  // list must actually stop being accepted.
+  const { error: callbackWipeError } = await sb
+    .from("application_callbacks")
+    .delete()
+    .eq("org_id", ORG_ID)
+    .eq("app_slug", APPLICATION.slug);
+  if (callbackWipeError) throw new Error(`application_callbacks: ${callbackWipeError.message}`);
+
+  const { error: callbackError } = await sb.from("application_callbacks").insert(
+    [...new Set(APPLICATION.callbacks)].map((callback_url) => ({
+      org_id: ORG_ID,
+      app_slug: APPLICATION.slug,
+      callback_url,
+    }))
+  );
+  if (callbackError) throw new Error(`application_callbacks: ${callbackError.message}`);
+
+  console.log(`application    ${APPLICATION.name} (${APPLICATION.callbacks.length} callback URLs, no secret yet)`);
 
   // ── assets ──────────────────────────────────────────────────────
   for (const a of ASSETS) {

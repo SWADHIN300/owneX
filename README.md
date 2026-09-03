@@ -65,18 +65,19 @@ flowchart LR
   subgraph Browser["Browser"]
     Wallet["Wallet"]
     Console["Platform console"]
-    Portal["Employee portal\nnot present in this checkout"]
+    Portal["Registered partner site\ne.g. apps/employee-portal"]
   end
 
   subgraph API["Next.js API layer"]
     Auth["SIWE auth"]
+    Authorize["/authorize + /api/authorize/exchange"]
     Roles["/api/roles/verify"]
     Routes["Platform API routes"]
     Indexer["On-demand event indexer"]
   end
 
   subgraph Private["Supabase\nprivate off-chain data"]
-    Records["Profiles, assets, apps,\nnonces, audit cache"]
+    Records["Profiles, assets, apps,\ncallbacks, client secret hashes,\nauthorization codes, nonces, audit cache"]
   end
 
   subgraph Chain["Sepolia\npublic on-chain state"]
@@ -88,7 +89,12 @@ flowchart LR
   Wallet --> Console
   Console --> Auth
   Console --> Routes
+  Portal --> Authorize
   Portal --> Roles
+  Wallet --> Authorize
+  Authorize --> Records
+  Authorize --> IR
+  Authorize --> OAM
   Auth --> Records
   Routes --> Records
   Indexer --> Records
@@ -172,9 +178,10 @@ sequenceDiagram
 |---|---|
 | Contracts | Built and deployed to Sepolia: identity registry, org access manager, asset NFT. |
 | Platform app | Built in `apps/platform`: landing page, design system, console, API routes, Supabase integration, SIWE auth. |
-| Cross-app authorization endpoint | Built: `/api/roles/verify` reads live chain state and is intentionally unauthenticated for this PoC. |
-| Seeded Employee Portal app registration | Built on-chain and in Supabase seed data as `employee-portal`. |
-| Separate Employee Portal UI | Not present in this checkout. The README does not claim it is deployable from this repo. |
+| Sign in with OwneX | Built: a generic authorization-code flow any *registered* third-party website can use. `/authorize` → consent → single-use 2-minute code → `/api/authorize/exchange` with a per-application client secret. See [`docs/sign-in-with-ownex.md`](docs/sign-in-with-ownex.md). |
+| Application registry | Built: per-application client id, hashed client secret, exact callback URLs, allowed roles, revocation, and a five-step integration status pipeline on `/dashboard/applications`. |
+| Cross-app authorization endpoint | Built: `/api/roles/verify` reads live chain state, fails closed, returns no private profile data, and requires the partner's client credentials in production. Unauthenticated access is a documented development-only mode. |
+| Employee Portal | Built in `apps/employee-portal` as the reference integration: its own client id and secret from its environment, `state` verification, server-side code exchange, and live revalidation on every request. |
 
 ## Security Evidence
 
@@ -305,8 +312,10 @@ Use the first value for `SESSION_PASSWORD` and the second for
 `PII_ENCRYPTION_KEY`. The PII key cannot be changed after data exists without
 making encrypted rows unreadable.
 
-Apply `supabase/schema.sql` in the Supabase SQL editor once, then run the local
-stack:
+Apply `supabase/schema.sql` in the Supabase SQL editor once, then apply
+`supabase/migrations/0001_generic_sso.sql` (idempotent, and needed on an existing
+database to add the "Sign in with OwneX" client credentials, callback table and
+generic authorization codes). Then run the local stack:
 
 ```bash
 # terminal 1
@@ -318,6 +327,21 @@ npm run dev:platform
 ```
 
 Open the platform at http://localhost:3000.
+
+To run the Employee Portal as the reference "Sign in with OwneX" integration,
+provision its credentials and copy the printed block into
+`apps/employee-portal/.env.local`:
+
+```bash
+cd apps/platform
+npm run provision:app -- --slug employee-portal --name "Employee Portal" \
+  --url http://localhost:3001 --callback http://localhost:3001/callback \
+  --roles ADMIN,MANAGER,AUDITOR,USER --org 1
+```
+
+Then sign `registerApplication` and `setAppAccess` from
+`/dashboard/applications`, and start the portal with `npm run dev:portal`. Full
+detail is in [`docs/sign-in-with-ownex.md`](docs/sign-in-with-ownex.md).
 
 Local wallet network:
 
@@ -381,9 +405,11 @@ ownex/
   contracts/          IdentityRegistry, OrgAccessManager, AssetNFT
   test/               93 contract tests
   scripts/            deploy, seed, Sepolia preflight/verify/config
-  supabase/           schema.sql
+  supabase/           schema.sql, migrations/
+  docs/               sign-in-with-ownex.md — the integration guide
   deployments/        local and Sepolia deployment/seed artifacts
   apps/platform/      Next.js platform, API routes, scripts, UI
+  apps/employee-portal/  reference "Sign in with OwneX" partner integration
   read/               phase notes, architecture, evidence, demo script
 ```
 

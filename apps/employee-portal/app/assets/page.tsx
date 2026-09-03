@@ -1,23 +1,47 @@
 import { redirect } from "next/navigation";
+
 import { session } from "@/lib/session";
-import { getPlatformOrigin } from "@/lib/config";
+import { verifyAccess } from "@/lib/ownex";
+import { clientAuthHeader, ownexConfig } from "@/lib/config";
+
+/**
+ * Assets assigned to the signed-in wallet.
+ *
+ * Access is revalidated before anything is fetched: a page that shows
+ * organization data must not render for a wallet whose role has just been
+ * revoked, and checking the session cookie alone would do exactly that.
+ */
+
+export const dynamic = "force-dynamic";
+
+type PortalAsset = { tokenId: number; name?: string; assetType?: string; active: boolean };
 
 export default async function Assets() {
-  const s = await session();
-  if (!s.wallet) redirect("/");
+  const store = await session();
+  if (!store.wallet) redirect("/");
 
-  let assets: Array<{ tokenId: number; name: string; assetType: string; active: boolean }> = [];
+  const verified = await verifyAccess(store.wallet);
+  if (!verified.allowed) {
+    redirect(`/denied?reason=${encodeURIComponent(verified.reason ?? "ACCESS_DENIED")}`);
+  }
+
+  let assets: PortalAsset[] = [];
   try {
-    const origin = getPlatformOrigin();
-    const u = new URL("/api/portal/assets", origin);
-    u.searchParams.set("wallet", s.wallet);
-    u.searchParams.set("orgId", process.env.PORTAL_ORG_ID ?? "1");
-    const r = await fetch(u, { cache: "no-store" });
-    if (r.ok) {
-      const data = await r.json();
+    const config = ownexConfig();
+    const url = new URL("/api/portal/assets", `${config.origin}/`);
+    url.searchParams.set("wallet", store.wallet);
+    url.searchParams.set("orgId", String(config.orgId));
+
+    const response = await fetch(url, {
+      headers: { authorization: clientAuthHeader(config) },
+      cache: "no-store",
+    });
+    if (response.ok) {
+      const data = (await response.json()) as { assets?: PortalAsset[] };
       assets = data.assets ?? [];
     }
   } catch {
+    // An unreachable owneX shows an empty vault rather than stale data.
     assets = [];
   }
 
@@ -27,21 +51,21 @@ export default async function Assets() {
       <h1>Assets</h1>
       <p className="muted">Certificates and equipment assigned by your organization.</p>
       <div className="grid">
-        {assets.map((a) => (
-          <div className="card asset" key={a.tokenId}>
+        {assets.map((asset) => (
+          <div className="card asset" key={asset.tokenId}>
             <div>
-              <h3>{a.name}</h3>
-              <p className="muted">{a.assetType}</p>
+              <h3>{asset.name ?? `Asset #${asset.tokenId}`}</h3>
+              <p className="muted">{asset.assetType ?? "Asset"}</p>
             </div>
-            <span className="pill">{a.active ? "Active" : "Revoked"}</span>
+            <span className="pill">{asset.active ? "Active" : "Revoked"}</span>
           </div>
         ))}
       </div>
-      {!assets.length && (
+      {assets.length === 0 ? (
         <div className="card">
           <p>No assets are assigned to you yet.</p>
         </div>
-      )}
+      ) : null}
     </main>
   );
 }

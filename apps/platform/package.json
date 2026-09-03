@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types \"lib/**/*.test.ts\"",
     "seed:offchain": "node scripts/seed-offchain.mjs",
+    "provision:app": "node scripts/provision-app.mjs",
     "check:contrast": "node scripts/check-contrast.mjs",
     "check:overflow": "node scripts/diagnose-overflow.mjs",
     "shots": "node scripts/shots.mjs",

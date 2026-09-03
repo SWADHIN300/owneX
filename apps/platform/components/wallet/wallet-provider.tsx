@@ -274,11 +274,21 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setSessionError(null);
         setStage("done");
 
-        // 5. If the URL carries a returnTo (set by /authorize when no session exists),
-        //    redirect there so the SSO flow resumes with full context. Only relative
-        //    paths are allowed to prevent open-redirect.
+        // 5. If the URL carries a returnTo (set by /authorize when no session
+        //    exists), resume the SSO flow there.
+        //
+        //    Only a same-origin path is honoured, and `//host` is refused
+        //    explicitly: a browser reads it as a protocol-relative URL, so
+        //    `startsWith("/")` alone would be an open redirect. The path is also
+        //    pinned to /authorize, because that is the only flow that sets it.
         const returnTo = new URLSearchParams(window.location.search).get("returnTo");
-        if (returnTo && returnTo.startsWith("/")) {
+        if (
+          returnTo &&
+          returnTo.startsWith("/") &&
+          !returnTo.startsWith("//") &&
+          !returnTo.startsWith("/\\") &&
+          new URL(returnTo, window.location.origin).pathname === "/authorize"
+        ) {
           window.location.href = returnTo;
         }
       } catch (caught) {
