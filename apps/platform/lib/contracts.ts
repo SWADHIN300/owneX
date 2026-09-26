@@ -98,6 +98,7 @@ export const ORG_ACCESS_MANAGER_ABI = [
   "function removeMember(uint256 orgId, address wallet)",
   "function setPermission(uint256 orgId, bytes32 role, bytes32 permission, uint8 state)",
   "function registerApplication(uint256 orgId, bytes32 appId, bytes32 metadataHash)",
+  "function applicationRegistered(uint256 orgId, bytes32 appId) view returns (bool)",
   "function setAppAccess(uint256 orgId, bytes32 appId, bytes32 role, bool allowed)",
   "event MemberAdded(uint256 indexed orgId, address indexed wallet, bytes32 role, uint64 expiresAt, address indexed by)",
   "event RoleAssigned(uint256 indexed orgId, address indexed wallet, bytes32 previousRole, bytes32 newRole, uint64 expiresAt, address indexed by)",

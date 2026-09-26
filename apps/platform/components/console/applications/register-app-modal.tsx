@@ -3,7 +3,13 @@
 import * as React from "react";
 
 import { registerApplication, type AppRegistrationResult } from "@/lib/api";
-import { ROLE_HASH, getSigner, orgAccessManager, type WritableRole } from "@/lib/contracts";
+import {
+  ROLE_HASH,
+  appIdFromSlug,
+  getSigner,
+  orgAccessManager,
+  type WritableRole,
+} from "@/lib/contracts";
 import { Badge, Button, Input, Modal, RoleChip, type Role } from "@/components/ui";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useTransaction } from "@/components/console/tx/use-transaction";
@@ -59,6 +65,8 @@ export function RegisterAppModal({
   const tx = useTransaction<AppRegistrationResult, AppRegistrationResult>();
   const [grantingRole, setGrantingRole] = React.useState<WritableRole | null>(null);
   const [grantError, setGrantError] = React.useState<string | null>(null);
+  const [preflightError, setPreflightError] = React.useState<string | null>(null);
+  const [checkingRegistration, setCheckingRegistration] = React.useState(false);
 
   const slugValid = /^[a-z0-9][a-z0-9-]{1,38}[a-z0-9]$/.test(slug);
   const nameValid = name.trim().length >= 2;
@@ -78,7 +86,38 @@ export function RegisterAppModal({
     tx.reset();
   };
 
-  const submit = () =>
+  const submit = async () => {
+    setPreflightError(null);
+    setCheckingRegistration(true);
+
+    try {
+      if (!active) {
+        setPreflightError("No wallet is connected. Sign in again from the top bar.");
+        return;
+      }
+
+      const signer = await getSigner(active.provider);
+      const alreadyRegistered = Boolean(
+        await orgAccessManager(signer).applicationRegistered(orgId, appIdFromSlug(slug)),
+      );
+
+      if (alreadyRegistered) {
+        setPreflightError(
+          "This slug is already registered on-chain. Close this dialog and use its application card to manage roles, callbacks, or credentials.",
+        );
+        return;
+      }
+    } catch (error) {
+      setPreflightError(
+        error instanceof Error
+          ? `Could not check whether this slug is already registered: ${error.message}`
+          : "Could not check whether this slug is already registered. Check your wallet connection and try again.",
+      );
+      return;
+    } finally {
+      setCheckingRegistration(false);
+    }
+
     tx.run({
       prepare: () =>
         registerApplication({
@@ -128,6 +167,7 @@ export function RegisterAppModal({
         return prepared;
       },
     });
+  };
 
   return (
     <Modal
@@ -142,11 +182,16 @@ export function RegisterAppModal({
       }
       footer={
         <>
-          <Button variant="ghost" onClick={close} disabled={tx.busy}>
+          <Button variant="ghost" onClick={close} disabled={tx.busy || checkingRegistration}>
             {done ? "Close" : "Cancel"}
           </Button>
           {!done ? (
-            <Button variant="primary" onClick={submit} loading={tx.busy} disabled={!ready}>
+            <Button
+              variant="primary"
+              onClick={() => void submit()}
+              loading={tx.busy || checkingRegistration}
+              disabled={!ready || checkingRegistration}
+            >
               {tx.stage === "error" ? "Try again" : "Sign and register"}
             </Button>
           ) : null}
@@ -166,7 +211,7 @@ export function RegisterAppModal({
               // The slug follows the name until somebody edits it deliberately.
               if (!slug || slug === toSlug(name)) setSlug(toSlug(event.target.value));
             }}
-            disabled={tx.busy}
+            disabled={tx.busy || checkingRegistration}
             error={name && !nameValid ? "At least two characters" : undefined}
           />
 
@@ -176,7 +221,7 @@ export function RegisterAppModal({
             mono
             value={slug}
             onChange={(event) => setSlug(event.target.value.toLowerCase())}
-            disabled={tx.busy}
+            disabled={tx.busy || checkingRegistration}
             error={slug && !slugValid ? "Lowercase letters, digits and hyphens" : undefined}
             hint={
               slugValid || !slug
@@ -190,7 +235,7 @@ export function RegisterAppModal({
             placeholder="https://time.acme.com"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
-            disabled={tx.busy}
+            disabled={tx.busy || checkingRegistration}
             error={url && !urlValid ? "Needs to be an http or https URL" : undefined}
           />
 
@@ -199,7 +244,7 @@ export function RegisterAppModal({
             placeholder="Where staff log hours against projects"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            disabled={tx.busy}
+            disabled={tx.busy || checkingRegistration}
           />
 
           <Input
@@ -207,7 +252,7 @@ export function RegisterAppModal({
             placeholder="https://time.acme.com/logo.svg"
             value={logoUrl}
             onChange={(event) => setLogoUrl(event.target.value)}
-            disabled={tx.busy}
+            disabled={tx.busy || checkingRegistration}
             error={logoUrl && !logoValid ? "Needs to be an http or https URL" : undefined}
             hint="Shown on the consent screen so the visitor recognises who is asking."
           />
@@ -231,7 +276,7 @@ export function RegisterAppModal({
                       next[index] = event.target.value;
                       setCallbacks(next);
                     }}
-                    disabled={tx.busy}
+                    disabled={tx.busy || checkingRegistration}
                     error={value.trim() ? (describeCallback(value.trim()) ?? undefined) : undefined}
                   />
                 </div>
@@ -240,7 +285,7 @@ export function RegisterAppModal({
                     variant="ghost"
                     size="sm"
                     onClick={() => setCallbacks(callbacks.filter((_, i) => i !== index))}
-                    disabled={tx.busy}
+                    disabled={tx.busy || checkingRegistration}
                   >
                     Remove
                   </Button>
@@ -252,7 +297,7 @@ export function RegisterAppModal({
                 variant="ghost"
                 size="sm"
                 onClick={() => setCallbacks([...callbacks, ""])}
-                disabled={tx.busy}
+                disabled={tx.busy || checkingRegistration}
                 className="self-start"
               >
                 Add another callback URL
@@ -274,7 +319,7 @@ export function RegisterAppModal({
                     key={role}
                     type="button"
                     aria-pressed={chosen}
-                    disabled={tx.busy}
+                    disabled={tx.busy || checkingRegistration}
                     onClick={() =>
                       setRoles(chosen ? roles.filter((r) => r !== role) : [...roles, role])
                     }
@@ -298,6 +343,12 @@ export function RegisterAppModal({
           {grantingRole ? (
             <p role="status" className="text-xs text-ink-muted">
               Granting {grantingRole} access — sign in your wallet.
+            </p>
+          ) : null}
+
+          {preflightError ? (
+            <p role="alert" className="rounded-md border border-warn/45 bg-warn/10 p-3 text-xs leading-relaxed text-ink">
+              {preflightError}
             </p>
           ) : null}
 
