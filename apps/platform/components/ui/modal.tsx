@@ -107,7 +107,7 @@ export function Modal({
       {open ? (
         <div
           data-slot="modal"
-          className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 overflow-y-auto"
         >
           <motion.div
             aria-hidden
@@ -116,7 +116,7 @@ export function Modal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: reduceMotion ? 0 : 0.18 }}
-            className="absolute inset-0 bg-black/45 backdrop-blur-sm"
+            className="fixed inset-0 bg-black/45 backdrop-blur-sm"
           />
 
           <motion.div
@@ -138,11 +138,11 @@ export function Modal({
               ease: [0.22, 1, 0.36, 1],
             }}
             className={cn(
-              "relative w-full rounded-xl border border-border bg-surface shadow-lifted outline-none",
+              "relative w-full max-h-[calc(100vh-2rem)] flex flex-col rounded-xl border border-border bg-surface shadow-lifted outline-none my-auto",
               SIZE[size],
             )}
           >
-            <div className="flex items-start justify-between gap-4 border-b border-border-soft p-5">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-border-soft p-5">
               <div className="min-w-0">
                 <h2 id={titleId} className="text-base font-semibold text-ink">
                   {title}
@@ -176,10 +176,10 @@ export function Modal({
               </button>
             </div>
 
-            {children ? <div className="p-5">{children}</div> : null}
+            {children ? <div className="p-5 overflow-y-auto min-h-0 flex-1">{children}</div> : null}
 
             {footer ? (
-              <div className="flex flex-wrap justify-end gap-2 border-t border-border-soft p-5">
+              <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-border-soft p-5">
                 {footer}
               </div>
             ) : null}

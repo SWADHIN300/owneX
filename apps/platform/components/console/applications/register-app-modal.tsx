@@ -77,6 +77,16 @@ export function RegisterAppModal({
     cleanCallbacks.length > 0 && cleanCallbacks.every((value) => describeCallback(value) === null);
   const ready = slugValid && nameValid && urlValid && logoValid && callbacksValid && roles.length > 0;
 
+  const fillDemo = () => {
+    const demoSlug = `demo-app-${Math.floor(1000 + Math.random() * 9000)}`;
+    setName("Demo App");
+    setSlug(demoSlug);
+    setUrl("https://demo.app");
+    setDescription("Demo internal application");
+    setCallbacks(["http://localhost:3001/api/auth/callback"]);
+    setRoles(["USER"]);
+  };
+
   const done = tx.stage === "done";
 
   const close = () => {
@@ -182,6 +192,23 @@ export function RegisterAppModal({
       }
       footer={
         <>
+          {!done ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              onClick={fillDemo}
+              disabled={tx.busy || checkingRegistration}
+              className="mr-auto text-xs text-ink-muted hover:text-ink"
+            >
+              Fill example values
+            </Button>
+          ) : null}
+          {!done && !ready ? (
+            <span className="text-[0.6875rem] text-ink-faint hidden sm:inline">
+              {!nameValid ? "Name required" : !urlValid ? "Homepage URL required" : !callbacksValid ? "Callback URL required" : ""}
+            </span>
+          ) : null}
           <Button variant="ghost" onClick={close} disabled={tx.busy || checkingRegistration}>
             {done ? "Close" : "Cancel"}
           </Button>
@@ -203,7 +230,7 @@ export function RegisterAppModal({
       ) : (
         <div className="flex flex-col gap-4">
           <Input
-            label="Application name"
+            label="Application name *"
             placeholder="Acme Time Tracking"
             value={name}
             onChange={(event) => {
@@ -216,7 +243,7 @@ export function RegisterAppModal({
           />
 
           <Input
-            label="Slug"
+            label="Slug *"
             placeholder="acme-time-tracking"
             mono
             value={slug}
@@ -231,7 +258,7 @@ export function RegisterAppModal({
           />
 
           <Input
-            label="Homepage URL"
+            label="Homepage URL *"
             placeholder="https://time.acme.com"
             value={url}
             onChange={(event) => setUrl(event.target.value)}
@@ -258,7 +285,7 @@ export function RegisterAppModal({
           />
 
           <fieldset className="flex flex-col gap-2">
-            <legend className="label-xs mb-1 text-ink-muted">Callback URLs</legend>
+            <legend className="label-xs mb-1 text-ink-muted">Callback URLs *</legend>
             <p className="text-xs leading-relaxed text-ink-faint">
               Exact URLs, matched character for character. No wildcards and no subdomain patterns.
               https is required unless the host is localhost.

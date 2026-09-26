@@ -63,7 +63,7 @@ export function ApplicationsScreen() {
       kicker="Applications"
       title="Sign in with owneX"
       actions={
-        canManage ? (
+        canManage && !gate ? (
           <Button variant="primary" onClick={() => setRegistering(true)}>
             Register an application
           </Button>

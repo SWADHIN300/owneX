@@ -148,7 +148,11 @@ export function isUserRejection(error: unknown): boolean {
 export function walletErrorMessage(error: unknown): string {
   if (isUserRejection(error)) return "Request was rejected in the wallet.";
   if (error instanceof Error && error.message) {
-    return error.message.split("\n")[0].slice(0, 160);
+    const msg = error.message.split("\n")[0].slice(0, 160);
+    if (/not support.*network/i.test(msg) || /unsupported.*network/i.test(msg)) {
+      return "This wallet does not support this network. If using Backpack, enable 'Developer Mode' under Settings > Preferences, or use MetaMask.";
+    }
+    return msg;
   }
   return "The wallet could not complete the request.";
 }

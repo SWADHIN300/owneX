@@ -71,7 +71,7 @@ export function MembersScreen() {
       kicker="Members"
       title={members.data?.organisation?.name ?? "Organisation members"}
       actions={
-        canManage ? (
+        canManage && !gate ? (
           <Button variant="primary" onClick={() => setAddOpen(true)}>
             Add member
           </Button>
